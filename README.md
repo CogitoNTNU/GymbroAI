@@ -118,6 +118,14 @@ This project would not have been possible without the hard work and dedication o
             </a>
         </td>
     </tr>
+    <tr>
+        <td align="center">
+            <a href="https://github.com/Codin-Wizard">
+              <img src="https://github.com/Codin-Wizard.png?size=100" width="100px;" alt="Codin-Wizard"/><br />
+              <sub><b>Vittorio Avellone</b></sub>
+            </a>
+        </td>
+    </tr>
 </table>
 
 ![Group picture](docs/img/team.png)
