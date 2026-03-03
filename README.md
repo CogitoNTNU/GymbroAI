@@ -128,6 +128,12 @@ This project would not have been possible without the hard work and dedication o
               <sub><b>Jens Valderhaug</b></sub>
             </a>
         </td>
+        <td align="center">
+            <a href="https://github.com/GustavNat">
+              <img src="https://github.com/GustavNat.png?size=100" width="100px;" alt="GustavNat"/><br />
+              <sub><b>Gustav Natvig</b></sub>
+            </a>
+        </td>
     </tr>
 </table>
 
