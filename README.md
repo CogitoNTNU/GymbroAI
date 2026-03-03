@@ -134,6 +134,12 @@ This project would not have been possible without the hard work and dedication o
               <sub><b>Gustav Natvig</b></sub>
             </a>
         </td>
+        <td align="center">
+            <a href="https://github.com/trifleen">
+              <img src="https://github.com/trifleen.png?size=100" width="100px;" alt="GustavNat"/><br />
+              <sub><b>Ivan Kochura</b></sub>
+            </a>
+        </td>
     </tr>
 </table>
 
@@ -141,6 +147,6 @@ This project would not have been possible without the hard work and dedication o
 
 ### License
 
----
+______________________________________________________________________
 
 Distributed under the MIT License. See `LICENSE` for more information.
