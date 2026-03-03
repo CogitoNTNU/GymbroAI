@@ -140,6 +140,12 @@ This project would not have been possible without the hard work and dedication o
               <sub><b>Ivan Kochura</b></sub>
             </a>
         </td>
+        <td align="center">
+            <a href="https://github.com/HenrikOen">
+              <img src="https://github.com/HenrikOen.png?size=100" width="100px;" alt="HenrikOen"/><br />
+              <sub><b>Henrik Oen</b></sub>
+            </a>
+        </td>
     </tr>
 </table>
 
