@@ -35,7 +35,7 @@
 ## 🛠️ Prerequisites
 
 <!-- TODO: In this section you put what is needed for the program to run.
-For example: OS version, programs, libraries, etc.  
+For example: OS version, programs, libraries, etc.
 
 -->
 
@@ -46,7 +46,7 @@ For example: OS version, programs, libraries, etc.
 
 ## Getting started
 
-<!-- TODO: In this Section you describe how to install this project in its intended environment.(i.e. how to get it to run)  
+<!-- TODO: In this Section you describe how to install this project in its intended environment.(i.e. how to get it to run)
 -->
 
 1. **Clone the repository**:
@@ -118,9 +118,32 @@ This project would not have been possible without the hard work and dedication o
             </a>
         </td>
         <td align="center">
+            <a href="https://github.com/Codin-Wizard">
+              <img src="https://github.com/Codin-Wizard.png?size=100" width="100px;" alt="Codin-Wizard"/><br />
+              <sub><b>Vittorio Avellone</b></sub>
+        </td>
+        <td align="center">
             <a href="https://github.com/jensgva">
               <img src="https://github.com/jensgva.png?size=100" width="100px;" alt="jensgva"/><br />
               <sub><b>Jens Valderhaug</b></sub>
+            </a>
+        </td>
+        <td align="center">
+            <a href="https://github.com/GustavNat">
+              <img src="https://github.com/GustavNat.png?size=100" width="100px;" alt="GustavNat"/><br />
+              <sub><b>Gustav Natvig</b></sub>
+            </a>
+        </td>
+        <td align="center">
+            <a href="https://github.com/trifleen">
+              <img src="https://github.com/trifleen.png?size=100" width="100px;" alt="GustavNat"/><br />
+              <sub><b>Ivan Kochura</b></sub>
+            </a>
+        </td>
+        <td align="center">
+            <a href="https://github.com/HenrikOen">
+              <img src="https://github.com/HenrikOen.png?size=100" width="100px;" alt="HenrikOen"/><br />
+              <sub><b>Henrik Oen</b></sub>
             </a>
         </td>
     </tr>
