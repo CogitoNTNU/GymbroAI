@@ -1,22 +1,22 @@
 <!-- TODO: CHANGE ALL INSTANCES OF "PROJECT-TEMPLATE" IN ENTIRE PROJECT TO YOUR PROJECT TITLE-->
 
-# Gymbro_AI
+# GymbroAI
 
 <div align="center">
 
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/CogitoNTNU/Gymbro_AI/ci.yml)
-![GitHub top language](https://img.shields.io/github/languages/top/CogitoNTNU/Gymbro_AI)
-![GitHub language count](https://img.shields.io/github/languages/count/CogitoNTNU/Gymbro_AI)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/CogitoNTNU/GymbroAI/ci.yml)
+![GitHub top language](https://img.shields.io/github/languages/top/CogitoNTNU/GymbroAI)
+![GitHub language cougitnt](https://img.shields.io/github/languages/count/CogitoNTNU/GymbroAI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Project Version](https://img.shields.io/badge/version-0.0.1-blue)](https://img.shields.io/badge/version-0.0.1-blue)
 
-<img src="docs/images/gymbroai.png" width="50%" alt="Cogito Project Logo" style="display: block; margin-left: auto; margin-right: auto;">
+<img src="docs/images/GymbroAI.png" width="50%" alt="Cogito Project Logo" style="display: block; margin-left: auto; margin-right: auto;">
 </div>
 
 <details> 
 <summary><b>📋 Table of contents </b></summary>
 
-- [Gymbro AI](#Gymbro_AI)
+- [GymbroAI](#GymbroAI)
   - [Description](#description)
   - [🛠️ Prerequisites](#%EF%B8%8F-prerequisites)
   - [Getting started](#getting-started)
@@ -52,8 +52,8 @@ For example: OS version, programs, libraries, etc.
 1. **Clone the repository**:
 
    ```sh
-   git clone https://github.com/CogitoNTNU/GYMBRO AI.git
-   cd GYMBRO AI
+   git clone https://github.com/CogitoNTNU/GymbroAI.git
+   cd GymbroAI
    ```
 
 1. **Install dependencies**:
@@ -95,7 +95,7 @@ uv run mkdocs build
 uv run mkdocs serve
 ```
 
-This will build the documentation and start a local server at [http://127.0.0.1:8000/](http://127.0.0.1:8000/) where you can browse the docs and API reference. Get the documentation according to the lastes commit on main by viewing the `gh-pages` branch on GitHub: [https://cogitontnu.github.io/Gymbro_AI/](https://cogitontnu.github.io/Gymbro_AI/).
+This will build the documentation and start a local server at [http://127.0.0.1:8000/](http://127.0.0.1:8000/) where you can browse the docs and API reference. Get the documentation according to the lastes commit on main by viewing the `gh-pages` branch on GitHub: [https://cogitontnu.github.io/GymbroAI/](https://cogitontnu.github.io/GymbroAI/).
 
 ## Testing
 
