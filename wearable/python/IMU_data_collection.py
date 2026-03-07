@@ -12,14 +12,14 @@ char_uuid = os.getenv("UUID")
 
 ADDRESS = address
 CHAR_UUID = char_uuid
-# Shoulder press = 1, Bicep curl = 2,
-LABEL = 2
+# Tricep extension= 0 Shoulder press = 1, Bicep curl = 2, Squat = 3, Rows = 4
+LABEL = 3
 
 recording_number = 1
-person = "dennis"
-exercise = "bicep_curl"
+person = "henrik"
+exercise = "squat"
 
-folder = "data"
+folder = "data\\" + exercise 
 os.makedirs(folder, exist_ok=True)  # lager mappen hvis den ikke finnes
 
 filename = f"{exercise}_{person}_{recording_number}.csv"
