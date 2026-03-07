@@ -1,23 +1,25 @@
 #include <ArduinoBLE.h>
 #include <Arduino_BMI270_BMM150.h>
 
-BLEService imuService("12345678-1234-1234-1234-1234567890ab");
+// Sett inn dine egne UUID-er her (kan genereres på https://www.uuidgenerator.net/)
+BLEService imuService("3ba9f7b5-8e2d-4f12-8338-08e1296dd5fe"); 
 BLECharacteristic imuCharacteristic(
-  "12345678-1234-1234-1234-1234567890ac",
+  "3ba9f7b5-8e2d-4f12-8338-08e1296dd5ff",
   BLENotify,
   24
 );
 
 
-const float accelerationThreshold = 2.5;  // G
-const int sampleRate = 50;                // Hz
+const float accelerationThreshold = 0;  
+const int sampleRate = 50;                
 const int captureSeconds = 2;
 const int numSamples = sampleRate * captureSeconds;
+
 
 int samplesRead = numSamples;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
 
   if (!BLE.begin()) {
     while (1);
@@ -27,7 +29,7 @@ void setup() {
     while (1);
   }
 
-  BLE.setLocalName("NameOfYourDevice");
+  BLE.setLocalName("CogitoIMU");
   BLE.setAdvertisedService(imuService);
 
   imuService.addCharacteristic(imuCharacteristic);
