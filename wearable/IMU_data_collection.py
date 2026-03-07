@@ -2,10 +2,16 @@ import asyncio
 import struct
 import csv
 import time
+import os
+from dotenv import load_dotenv
 from bleak import BleakClient
 
-ADDRESS = "A6:12:65:AC:5D:91"
-CHAR_UUID = "12345678-1234-1234-1234-1234567890ac"
+load_dotenv()
+address = os.getenv("MAC_ADRESS")
+char_uuid = os.getenv("UUID")
+
+ADDRESS = address
+CHAR_UUID = char_uuid
 LABEL = "shoulder_press"
 
 file = open("shoulder_press.csv", "a", newline="")

@@ -14,7 +14,6 @@ const int sampleRate = 50;                // Hz
 const int captureSeconds = 2;
 const int numSamples = sampleRate * captureSeconds;
 
-
 int samplesRead = numSamples;
 
 void setup() {
