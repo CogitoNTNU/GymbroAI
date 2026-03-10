@@ -30,7 +30,8 @@
 
 ## Description
 
-<!-- TODO: Provide a brief overview of what this project does and its key features. Please add pictures or videos of the application -->
+GymBro AI skal bruke IMU-sensorer og AI for å gjenkjenne treningsøvelser og telle repetisjoner automatisk! Vi skal utforske AI Pose Estimation for å vurdere treningsform og utvikle et system som gir sanntids tilbakemelding på teknikk. Prosjektet kombinerer mikrokontrollere med maskinlæring og Computer Vision for en praktisk anvendelse som hjelper folk med å trene tryggere og mer effektivt.
+
 
 ## 🛠️ Prerequisites
 
