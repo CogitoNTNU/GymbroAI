@@ -1,22 +1,22 @@
 <!-- TODO: CHANGE ALL INSTANCES OF "PROJECT-TEMPLATE" IN ENTIRE PROJECT TO YOUR PROJECT TITLE-->
 
-# PROJECT-TEMPLATE
+# GymbroAI
 
 <div align="center">
 
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/CogitoNTNU/PROJECT-TEMPLATE/ci.yml)
-![GitHub top language](https://img.shields.io/github/languages/top/CogitoNTNU/PROJECT-TEMPLATE)
-![GitHub language count](https://img.shields.io/github/languages/count/CogitoNTNU/PROJECT-TEMPLATE)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/CogitoNTNU/GymbroAI/ci.yml)
+![GitHub top language](https://img.shields.io/github/languages/top/CogitoNTNU/GymbroAI)
+![GitHub language cougitnt](https://img.shields.io/github/languages/count/CogitoNTNU/GymbroAI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Project Version](https://img.shields.io/badge/version-0.0.1-blue)](https://img.shields.io/badge/version-0.0.1-blue)
 
-<img src="docs/images/project-logo.webp" width="50%" alt="Cogito Project Logo" style="display: block; margin-left: auto; margin-right: auto;">
+<img src="docs/images/gymbroai.png" width="50%" alt="Cogito Project Logo" style="display: block; margin-left: auto; margin-right: auto;">
 </div>
 
 <details> 
 <summary><b>📋 Table of contents </b></summary>
 
-- [PROJECT-TEMPLATE](#PROJECT-TEMPLATE)
+- [GymbroAI](#GymbroAI)
   - [Description](#description)
   - [🛠️ Prerequisites](#%EF%B8%8F-prerequisites)
   - [Getting started](#getting-started)
@@ -30,12 +30,13 @@
 
 ## Description
 
-<!-- TODO: Provide a brief overview of what this project does and its key features. Please add pictures or videos of the application -->
+GymBro AI skal bruke IMU-sensorer og AI for å gjenkjenne treningsøvelser og telle repetisjoner automatisk! Vi skal utforske AI Pose Estimation for å vurdere treningsform og utvikle et system som gir sanntids tilbakemelding på teknikk. Prosjektet kombinerer mikrokontrollere med maskinlæring og Computer Vision for en praktisk anvendelse som hjelper folk med å trene tryggere og mer effektivt.
+
 
 ## 🛠️ Prerequisites
 
 <!-- TODO: In this section you put what is needed for the program to run.
-For example: OS version, programs, libraries, etc.  
+For example: OS version, programs, libraries, etc.
 
 -->
 
@@ -46,14 +47,14 @@ For example: OS version, programs, libraries, etc.
 
 ## Getting started
 
-<!-- TODO: In this Section you describe how to install this project in its intended environment.(i.e. how to get it to run)  
+<!-- TODO: In this Section you describe how to install this project in its intended environment.(i.e. how to get it to run)
 -->
 
 1. **Clone the repository**:
 
    ```sh
-   git clone https://github.com/CogitoNTNU/PROJECT-TEMPLATE.git
-   cd PROJECT-TEMPLATE
+   git clone https://github.com/CogitoNTNU/GymbroAI.git
+   cd GymbroAI
    ```
 
 1. **Install dependencies**:
@@ -95,7 +96,7 @@ uv run mkdocs build
 uv run mkdocs serve
 ```
 
-This will build the documentation and start a local server at [http://127.0.0.1:8000/](http://127.0.0.1:8000/) where you can browse the docs and API reference. Get the documentation according to the lastes commit on main by viewing the `gh-pages` branch on GitHub: [https://cogitontnu.github.io/PROJECT-TEMPLATE/](https://cogitontnu.github.io/PROJECT-TEMPLATE/).
+This will build the documentation and start a local server at [http://127.0.0.1:8000/](http://127.0.0.1:8000/) where you can browse the docs and API reference. Get the documentation according to the lastes commit on main by viewing the `gh-pages` branch on GitHub: [https://cogitontnu.github.io/GymbroAI/](https://cogitontnu.github.io/GymbroAI/).
 
 ## Testing
 
@@ -118,9 +119,32 @@ This project would not have been possible without the hard work and dedication o
             </a>
         </td>
         <td align="center">
+            <a href="https://github.com/Codin-Wizard">
+              <img src="https://github.com/Codin-Wizard.png?size=100" width="100px;" alt="Codin-Wizard"/><br />
+              <sub><b>Vittorio Avellone</b></sub>
+        </td>
+        <td align="center">
             <a href="https://github.com/jensgva">
               <img src="https://github.com/jensgva.png?size=100" width="100px;" alt="jensgva"/><br />
               <sub><b>Jens Valderhaug</b></sub>
+            </a>
+        </td>
+        <td align="center">
+            <a href="https://github.com/GustavNat">
+              <img src="https://github.com/GustavNat.png?size=100" width="100px;" alt="GustavNat"/><br />
+              <sub><b>Gustav Natvig</b></sub>
+            </a>
+        </td>
+        <td align="center">
+            <a href="https://github.com/trifleen">
+              <img src="https://github.com/trifleen.png?size=100" width="100px;" alt="GustavNat"/><br />
+              <sub><b>Ivan Kochura</b></sub>
+            </a>
+        </td>
+        <td align="center">
+            <a href="https://github.com/HenrikOen">
+              <img src="https://github.com/HenrikOen.png?size=100" width="100px;" alt="HenrikOen"/><br />
+              <sub><b>Henrik Oen</b></sub>
             </a>
         </td>
     </tr>
