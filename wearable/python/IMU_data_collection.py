@@ -16,10 +16,10 @@ CHAR_UUID = char_uuid
 LABEL = 2
 
 recording_number = 1
-person = "odin"
-exercise = "bicep_curl"
+person = "test"
+exercise = "squat"
 
-folder = "data\\" + exercise 
+folder = "data\\" + exercise
 os.makedirs(folder, exist_ok=True)  # lager mappen hvis den ikke finnes
 
 filename = f"{exercise}_{person}_{recording_number}.csv"
