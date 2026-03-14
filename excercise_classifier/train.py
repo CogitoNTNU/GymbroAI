@@ -2,17 +2,15 @@ import pandas as pd
 import numpy as np
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 import joblib
 import os
 import re
 from collections import defaultdict
 
+# ── Definitions ──────────────────────────────────────────────────────────────
 
-# ── Landmark definitions ──────────────────────────────────────────────────────
-
-# Body landmarks used for relative position features (excludes face/head details)
 BODY_LANDMARKS = [
     "left_shoulder",
     "right_shoulder",
@@ -26,53 +24,7 @@ BODY_LANDMARKS = [
     "right_knee",
 ]
 
-# Joint angle triplets: (point_a, VERTEX, point_c) → angle at vertex
-ANGLE_TRIPLETS = [
-    ("left_shoulder", "left_hip", "left_knee"),
-    ("right_shoulder", "right_hip", "right_knee"),
-    ("left_shoulder", "left_elbow", "left_wrist"),
-    ("right_shoulder", "right_elbow", "right_wrist"),
-    ("left_hip", "left_shoulder", "left_elbow"),
-    ("right_hip", "right_shoulder", "right_elbow"),
-    # Extra angles that help distinguish exercises
-    ("left_elbow", "left_shoulder", "right_shoulder"),  # L shoulder abduction
-    ("right_elbow", "right_shoulder", "left_shoulder"),  # R shoulder abduction
-]
-
-
-# ── Feature 1: Angles ─────────────────────────────────────────────────────────
-
-
-def calculate_angle(p1, p2, p3):
-    """Angle at vertex p2 formed by p1→p2 and p3→p2 (degrees)."""
-    a = np.array([p1[0] - p2[0], p1[1] - p2[1]])
-    b = np.array([p3[0] - p2[0], p3[1] - p2[1]])
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    cos_angle = np.clip(np.dot(a, b) / (norm_a * norm_b), -1.0, 1.0)
-    return float(np.degrees(np.arccos(cos_angle)))
-
-
-def extract_angles(row):
-    angles = []
-    for a_name, vertex_name, c_name in ANGLE_TRIPLETS:
-        p1 = (row[f"{a_name}_x"], row[f"{a_name}_y"])
-        p2 = (row[f"{vertex_name}_x"], row[f"{vertex_name}_y"])
-        p3 = (row[f"{c_name}_x"], row[f"{c_name}_y"])
-        angles.append(calculate_angle(p1, p2, p3))
-    return angles  # length = len(ANGLE_TRIPLETS)
-
-
-# ── Feature 2: Relative positions in 3D space ────────────────────────────────
-#
-# Raw MediaPipe coordinates change with where you stand in the frame, so we
-# normalise them in 3D space (x, y, z):
-#   1. Calculate body center as the midpoint between hip center and shoulder center
-#   2. Translate all coordinates so body center is at origin (0, 0, 0)
-#   3. Divide by torso height for scale invariance
-# This gives scale-invariant and position-invariant 3D coordinates.
+# ── Features: Relative positions in 3D space ─────────────────────────────────
 
 
 def extract_relative_positions(row):
@@ -123,7 +75,7 @@ def extract_relative_positions(row):
         nz = (row[f"{name}_z"] - body_cz) / torso_h
         feats.extend([nx, ny, nz])
 
-    return feats  # length = len(BODY_LANDMARKS) * 3
+    return feats
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
@@ -151,11 +103,8 @@ def load_data(data_dir):
 
     combined = pd.concat(all_data, ignore_index=True)
     print(
-        f"[DATA] Loaded {len(combined)} frames from {sum(len(v) for v in exercises.values())} files"
+        f"Loaded {len(combined)} frames from {sum(len(v) for v in exercises.values())} files"
     )
-    for label, files in sorted(exercises.items()):
-        n = sum(len(pd.read_csv(f)) for f in files)
-        print(f"         {label:20s}  {n} frames  ({len(files)} file(s))")
     return combined
 
 
@@ -167,48 +116,24 @@ def main():
     models_dir = os.path.join(os.path.dirname(__file__), "models")
     os.makedirs(models_dir, exist_ok=True)
 
-    print("=" * 80)
-    print("EXERCISE CLASSIFIER TRAINING - BODY LANDMARKS ONLY")
-    print("=" * 80)
-    print(
-        f"Using {len(BODY_LANDMARKS)} body landmarks for features (ankles/feet removed)"
-    )
-    print("Extracting 2 feature types in 3D space:")
-    print(f"  - Angles: {len(ANGLE_TRIPLETS)} joint angles")
-    print(
-        f"  - Positions: {len(BODY_LANDMARKS)} × 3 = {len(BODY_LANDMARKS) * 3} normalized 3D coordinates (x,y,z)"
-    )
-    print("\nNormalization: Body center (torso midpoint) at origin (0,0,0)")
-    print("               Scaled by 3D torso height for position/scale invariance")
-    print("=" * 80)
-    print()
-
     print("Loading data...")
     df = load_data(data_dir)
 
-    print("\nExtracting features  (angles + 3D positions)...")
+    print("Extracting features...")
     X, y = [], []
 
-    df_grouped = df.groupby("exercise")
-
-    for exercise_label, group in df_grouped:
-        rows = group.reset_index(drop=True)
-        for _, row in rows.iterrows():
-            angles = extract_angles(row)
-            positions = extract_relative_positions(row)
-
-            X.append(angles + positions)
-            y.append(exercise_label)
+    for _, row in df.iterrows():
+        X.append(extract_relative_positions(row))
+        y.append(row["exercise"])
 
     X = np.array(X, dtype=np.float32)
     y = np.array(y)
 
-    n_angles = len(ANGLE_TRIPLETS)
+    n_angles = 0
     n_positions = len(BODY_LANDMARKS) * 3
     print(
-        f"\n[FEATURES]  angles={n_angles}  positions={n_positions}  total={X.shape[1]}"
+        f"Samples: {len(X)} | Features: {X.shape[1]} (angles={n_angles}, positions={n_positions})"
     )
-    print(f"[SAMPLES]   {len(X)} frames  ×  {X.shape[1]} features")
 
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
@@ -217,7 +142,7 @@ def main():
         X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
     )
 
-    print(f"\nTraining on {len(X_train)} samples, testing on {len(X_test)}...")
+    print(f"Training on {len(X_train)} samples, testing on {len(X_test)}...")
     model = XGBClassifier(
         n_estimators=300,
         max_depth=6,
@@ -232,20 +157,14 @@ def main():
 
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"\n{'=' * 80}")
-    print("TRAINING COMPLETE")
-    print(f"{'=' * 80}")
     print(f"Accuracy: {accuracy:.2%}")
-    print("\nClassification report:")
-    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
 
-    print("\nSaving model...")
     joblib.dump(model, os.path.join(models_dir, "model_updated.pkl"))
     joblib.dump(label_encoder, os.path.join(models_dir, "encoder_updated.pkl"))
 
     # Save feature config so the inference script uses identical extraction
     feature_config = {
-        "angle_triplets": ANGLE_TRIPLETS,
+        "angle_triplets": [],
         "body_landmarks": BODY_LANDMARKS,
         "n_angles": n_angles,
         "n_positions": n_positions,
@@ -253,11 +172,7 @@ def main():
     }
     joblib.dump(feature_config, os.path.join(models_dir, "feature_config_updated.pkl"))
 
-    print("\nSaved to models/:")
-    print("  - model_updated.pkl")
-    print("  - encoder_updated.pkl")
-    print("  - feature_config_updated.pkl")
-    print(f"\n{'=' * 80}")
+    print("Saved: model_updated.pkl, encoder_updated.pkl, feature_config_updated.pkl")
 
 
 if __name__ == "__main__":
