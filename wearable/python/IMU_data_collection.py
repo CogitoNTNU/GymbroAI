@@ -7,16 +7,17 @@ from dotenv import load_dotenv
 from bleak import BleakClient
 
 load_dotenv()
-address = os.getenv("MAC_ADRESS")
+address = os.getenv("MAC_ADDRESS")
 char_uuid = os.getenv("UUID")
 
 ADDRESS = address
 CHAR_UUID = char_uuid
+
 # Tricep extension= 0 Shoulder press = 1, Bicep curl = 2, Squat = 3, Rows = 4
 LABEL = 2
 
 recording_number = 1
-person = "test"
+person = "dj"
 exercise = "squat"
 
 folder = "data\\" + exercise
@@ -41,6 +42,9 @@ def notification_handler(sender, data):
 async def main():
     async with BleakClient(ADDRESS) as client:
         print("Connected:", client.is_connected)
+        csv.writer(file).writerow(
+            ["timestamp", "ax", "ay", "az", "gx", "gy", "gz", "label", "person"]
+        )
 
         await client.start_notify(CHAR_UUID, notification_handler)
 
