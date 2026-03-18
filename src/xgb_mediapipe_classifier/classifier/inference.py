@@ -74,6 +74,32 @@ def landmarks_to_dict(pose_landmarks):
     return lm
 
 
+def draw_hud_text(frame, text, position, color, font_scale, thickness):
+    """Draw text on the image with a black outline for better visibility."""
+    # Outline
+    cv2.putText(
+        frame,
+        text,
+        position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        font_scale,
+        (0, 0, 0),
+        thickness + 2,
+        cv2.LINE_AA,
+    )
+    # Inner text
+    cv2.putText(
+        frame,
+        text,
+        position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        font_scale,
+        color,
+        thickness,
+        cv2.LINE_AA,
+    )
+
+
 def draw_landmarks_on_image(rgb_image, detection_result):
     """Draw skeleton and landmarks on image (body landmarks only)."""
     annotated = np.copy(rgb_image)
@@ -151,6 +177,25 @@ def extract_relative_positions(lm, body_landmarks):
             ]
         )
     return feats
+
+
+# ── Inference API ─────────────────────────────────────────────────────────────
+
+
+def load_classifier(models_dir):
+    """Load the XGBoost model, label encoder, and feature configuration."""
+    model = joblib.load(os.path.join(models_dir, "model_updated.pkl"))
+    encoder = joblib.load(os.path.join(models_dir, "encoder_updated.pkl"))
+    feature_config = joblib.load(os.path.join(models_dir, "feature_config_updated.pkl"))
+    return model, encoder, feature_config
+
+
+def predict_exercise(curr_lm, model, encoder, feature_config):
+    """Predict exercise class from current landmarks."""
+    features = build_feature_vector(curr_lm, feature_config)
+    prediction = model.predict(features.reshape(1, -1))[0]
+    exercise = encoder.inverse_transform([prediction])[0]
+    return exercise
 
 
 # ── Count reps ──────────────────────────────────────────────────────────

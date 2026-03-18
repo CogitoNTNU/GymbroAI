@@ -187,7 +187,7 @@ def draw_feedback_visualizer(frame, exercise_name, feedback_state, rep_count):
         return
 
     panel_w = 470
-    panel_h = 300 if exercise_name == "shoulder_press" else 260
+    panel_h = 420 if exercise_name == "shoulder_press" else 310
     panel_x = max(frame.shape[1] - panel_w - 18, 10)
     panel_y = 15
 
@@ -297,7 +297,7 @@ def draw_feedback_visualizer(frame, exercise_name, feedback_state, rep_count):
     lines = decision_lines + live_values
 
     y = text_bottom
-    for line in lines[:6]:
+    for line in lines:
         cv2.putText(
             frame,
             line,

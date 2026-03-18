@@ -2,7 +2,6 @@ import os
 import cv2
 import mediapipe as mp
 from classifier.inference import (
-    WINDOW_NAME,
     draw_hud_text,
     draw_landmarks_on_image,
     landmarks_to_dict,
@@ -24,6 +23,7 @@ from rep_counter import (
 
 LABEL_SWITCH_STREAK = 20
 FEEDBACK_BOTTOM_MARGIN = 35
+WINDOW_NAME = "Gymbro AI Classifier"
 
 
 def smooth_displayed_exercise(
@@ -89,21 +89,19 @@ def draw_active_hud(frame, exercise_name, rep_counts, feedback):
         )
 
 
-def process_pose_frame(
-    pose_landmarks,
-    model,
-    encoder,
-    feature_config,
+def process_stable_pose(
+    displayed_exercise,
+    curr_landmarks,
     rep_counts,
     feedback_states,
     rep_states,
 ):
-    curr_landmarks = landmarks_to_dict(pose_landmarks)
-    exercise_name = predict_exercise(curr_landmarks, model, encoder, feature_config)
-    update_rep_counts(exercise_name, curr_landmarks, rep_counts, rep_states)
-    # rep_counts is passed so feedback is only generated when a real rep was counted.
-    get_form_feedback(exercise_name, curr_landmarks, feedback_states, rep_counts)
-    return exercise_name
+    """Update tracking completely based on the smoothed and stabilized exercise class."""
+    if displayed_exercise is not None:
+        update_rep_counts(displayed_exercise, curr_landmarks, rep_counts, rep_states)
+        get_form_feedback(
+            displayed_exercise, curr_landmarks, feedback_states, rep_counts
+        )
 
 
 def handle_no_pose(frame, exercise_name, rep_counts, feedback_states, rep_states):
@@ -133,9 +131,26 @@ def main():
     )
 
     # 3) Open camera and initialize runtime state.
-    cap = cv2.VideoCapture(0)
+    # Try finding a working camera, prioritizing index 1 and 2 to bypass OBS at 0
+    cap = None
+    for cam_idx in [1, 2, 0, 3, 4]:
+        temp_cap = cv2.VideoCapture(cam_idx)
+        if temp_cap.isOpened():
+            success, frame = temp_cap.read()
+            # Often OBS virtual camera has a specific default resolution,
+            # but even just trying index 1 first usually finds the built-in webcam.
+            if success:
+                cap = temp_cap
+                break
+            else:
+                temp_cap.release()
+        else:
+            temp_cap.release()
+
+    if cap is None:
+        raise RuntimeError("Could not find a valid camera feed.")
+
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     frame_timestamp_ms = 0
     displayed_exercise = None
     pending_exercise = None
@@ -161,15 +176,11 @@ def main():
             # 4c) Update classification/rep/feedback state and draw HUD.
             if result.pose_landmarks:
                 frame = draw_landmarks_on_image(frame, result)
-                raw_exercise = process_pose_frame(
-                    pose_landmarks=result.pose_landmarks[0],
-                    model=model,
-                    encoder=encoder,
-                    feature_config=feature_config,
-                    rep_counts=rep_counts,
-                    feedback_states=feedback_states,
-                    rep_states=rep_states,
+                curr_landmarks = landmarks_to_dict(result.pose_landmarks[0])
+                raw_exercise = predict_exercise(
+                    curr_landmarks, model, encoder, feature_config
                 )
+
                 displayed_exercise, pending_exercise, pending_count = (
                     smooth_displayed_exercise(
                         raw_exercise,
@@ -178,16 +189,25 @@ def main():
                         pending_count,
                     )
                 )
+
+                process_stable_pose(
+                    displayed_exercise,
+                    curr_landmarks,
+                    rep_counts,
+                    feedback_states,
+                    rep_states,
+                )
+
                 feedback = get_feedback_message(displayed_exercise, feedback_states)
                 draw_active_hud(frame, displayed_exercise, rep_counts, feedback)
-                # Visualizer follows live classified exercise so it switches immediately
-                # and always shows the correct active stream/state for that exercise.
-                if show_feedback_visualizer and raw_exercise is not None:
+
+                # Visualizer now follows the smoothed active exercise
+                if show_feedback_visualizer and displayed_exercise is not None:
                     draw_feedback_visualizer(
                         frame,
-                        raw_exercise,
-                        feedback_states[raw_exercise],
-                        rep_counts[raw_exercise],
+                        displayed_exercise,
+                        feedback_states[displayed_exercise],
+                        rep_counts[displayed_exercise],
                     )
             else:
                 handle_no_pose(

@@ -5,7 +5,7 @@ from .form_feedback_utils import (
     motion_metrics,
 )
 
-WRIST_STACK_MAX = 0.055
+WRIST_STACK_MAX = 0.07
 WRIST_LEVEL_MAX = 0.06
 ELBOW_BALANCE_MAX = 15.0
 MIN_DESCENT_SECONDS = 2.0
