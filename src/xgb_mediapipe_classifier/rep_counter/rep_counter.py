@@ -88,6 +88,57 @@ def detect_rep_extremity(curr_lm, exercise_name):
     return None
 
 
+def _exercise_motion_metric(curr_lm, exercise_name):
+    angle_triplets = {
+        "left_elbow": ("left_shoulder", "left_elbow", "left_wrist"),
+        "right_elbow": ("right_shoulder", "right_elbow", "right_wrist"),
+        "left_knee": ("left_hip", "left_knee", "left_ankle"),
+        "right_knee": ("right_hip", "right_knee", "right_ankle"),
+    }
+
+    angles = {}
+    for name, (a_name, b_name, c_name) in angle_triplets.items():
+        p1 = (curr_lm[f"{a_name}_x"], curr_lm[f"{a_name}_y"])
+        p2 = (curr_lm[f"{b_name}_x"], curr_lm[f"{b_name}_y"])
+        p3 = (curr_lm[f"{c_name}_x"], curr_lm[f"{c_name}_y"])
+        angles[name] = calculate_angle(p1, p2, p3)
+
+    elbow_angle = (angles["left_elbow"] + angles["right_elbow"]) / 2.0
+    knee_angle = (angles["left_knee"] + angles["right_knee"]) / 2.0
+
+    if exercise_name == "curl":
+        return elbow_angle, CURL_TOP_ANGLE, CURL_BOTTOM_ANGLE
+    if exercise_name == "squat":
+        return knee_angle, SQUAT_BOTTOM_ANGLE, SQUAT_TOP_ANGLE
+    if exercise_name == "shoulder_press":
+        # Use elbow angle as the continuous progress metric.
+        return (
+            elbow_angle,
+            SHOULDER_PRESS_BOTTOM_ELBOW_ANGLE,
+            SHOULDER_PRESS_TOP_ELBOW_ANGLE,
+        )
+    return None
+
+
+def get_switch_progress(curr_lm, exercise_name, start_extremity):
+    """Return normalized movement progress [0,1] from the starting extremity."""
+    metric_data = _exercise_motion_metric(curr_lm, exercise_name)
+    if metric_data is None:
+        return 0.0
+
+    metric, low_level, high_level = metric_data
+    span = max(high_level - low_level, 1e-6)
+
+    if start_extremity == "top":
+        progress = (high_level - metric) / span
+    elif start_extremity == "bottom":
+        progress = (metric - low_level) / span
+    else:
+        return 0.0
+
+    return max(0.0, min(1.0, progress))
+
+
 def _confirm_extremity_transition(state, extremity):
     if state.last_extremity == extremity:
         state.pending_extremity = None

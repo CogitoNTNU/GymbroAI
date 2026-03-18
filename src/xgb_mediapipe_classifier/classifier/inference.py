@@ -8,6 +8,7 @@ from collections import defaultdict
 
 LABEL_SWITCH_STREAK = 20
 REP_EXTREMITY_STREAK = 3
+WINDOW_NAME = "Exercise Classifier - Body Only (3D)"
 
 # Which extremity triggers a full rep count (+1) per exercise.
 # Change to "bottom" to count on the way down instead.
@@ -110,6 +111,43 @@ def calculate_angle(p1, p2, p3):
         return 0.0
     cos_angle = np.clip(np.dot(a, b) / (norm_a * norm_b), -1.0, 1.0)
     return float(np.degrees(np.arccos(cos_angle)))
+
+
+def draw_hud_text(
+    frame,
+    text,
+    origin,
+    color=(255, 255, 255),
+    scale=1.0,
+    thickness=2,
+):
+    cv2.putText(
+        frame,
+        text,
+        origin,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        scale,
+        color,
+        thickness,
+    )
+
+
+def load_classifier(models_dir):
+    model = joblib.load(os.path.join(models_dir, "model_updated.pkl"))
+    encoder = joblib.load(os.path.join(models_dir, "encoder_updated.pkl"))
+    feature_config = joblib.load(os.path.join(models_dir, "feature_config_updated.pkl"))
+    return model, encoder, feature_config
+
+
+def predict_exercise(curr_lm, model, encoder, feature_config):
+    features = build_feature_vector(curr_lm, feature_config)
+    prediction = model.predict(features.reshape(1, -1))[0]
+
+    # Prefer encoder labels, but tolerate models that already return class names.
+    try:
+        return encoder.inverse_transform([prediction])[0]
+    except Exception:
+        return str(prediction)
 
 
 def build_feature_vector(curr_lm, feature_config):
