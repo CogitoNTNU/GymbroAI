@@ -19,8 +19,7 @@ from scipy.signal import butter, filtfilt, find_peaks
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 FILES = [
-    os.path.join("bicep_curl", "bicep_curl_gustav_1.csv"),
-    os.path.join("rows", "rows_dennis_1.csv"),
+    os.path.join("shoulder_press", "shoulder_press_gustav_1.csv"),
 ]
 
 # Expected column names (order matters when the CSV has no header)
@@ -30,234 +29,190 @@ COLUMN_NAMES = ["timestamp", "accel_x", "accel_y", "accel_z",
 # Candidate acceleration column name fragments (case-insensitive substring match)
 ACCEL_CANDIDATES = ["accel_x", "accel_y", "accel_z", "ax", "ay", "az"]
 
+
+#sample
+SAMPLE_RATE = 50 #ms
+
 # Low-pass filter
 FILTER_CUTOFF_HZ = 3.0      # cut-off frequency in Hz
 FILTER_ORDER     = 4        # Butterworth filter order
 
 # Peak detection
-MIN_PEAK_DISTANCE_SAMPLES = 20   # minimum samples between counted peaks
-MIN_PEAK_PROMINENCE       = 0.05 # minimum prominence to even be a candidate
+MIN_PEAK_DISTANCE_SAMPLES = 20  # minimum samples between counted peaks
 
 # Adaptive threshold
-ADAPTIVE_THRESHOLD_FACTOR = 0.6  # T = factor * mean(last two valid peaks)
+ADAPTIVE_THRESHOLD_FACTOR = 0.8  # T = factor * mean(last two valid peaks)
 SEED_THRESHOLD            = 0.3  # used until two valid peaks have been found
 
+
 # ---------------------------------------------------------------------------
-# I/O helpers
+# CSV loading
 # ---------------------------------------------------------------------------
 
-def load_csv(filepath: str) -> pd.DataFrame:
-    """Load a CSV, assigning column names when no header is present."""
-    # Peek at the first line to decide whether a header exists
-    with open(filepath, "r") as fh:
-        first = fh.readline()
-
-    first_col = first.split(",")[0].strip().lower()
-    # Accept any non-numeric first cell as a header row
-    try:
-        float(first_col)
-        has_header = False
-    except ValueError:
-        has_header = True
-
-    if has_header:
-        df = pd.read_csv(filepath)
-        # Normalise timestamp column: rename 'time' -> 'timestamp' if needed
-        if "timestamp" not in df.columns:
-            time_cols = [c for c in df.columns if c.lower() in ("time", "timestamp", "t")]
-            if time_cols:
-                df = df.rename(columns={time_cols[0]: "timestamp"})
-    else:
-        df = pd.read_csv(filepath, header=None, names=COLUMN_NAMES)
-
-    # Ensure timestamp is numeric
-    if "timestamp" in df.columns:
-        df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
-
+def load_csv(filepath):
+    """Load CSV; assign COLUMN_NAMES if the file has no header or mismatched columns."""
+    df = pd.read_csv(filepath)
+    # If columns look like integers the file had no header — reassign
+    if df.columns[0].isdigit() or list(df.columns) == list(range(len(df.columns))):
+        df = pd.read_csv(filepath, header=None, names=COLUMN_NAMES[:len(df.columns)])
     return df
 
 
-def find_accel_columns(df: pd.DataFrame) -> list[str]:
-    """Return the acceleration columns present in df, matched by substring."""
+# ---------------------------------------------------------------------------
+# Column detection
+# ---------------------------------------------------------------------------
+
+def find_accel_columns(df):
+    """Return the three acceleration column names by matching ACCEL_CANDIDATES."""
     matched = []
     for col in df.columns:
-        for cand in ACCEL_CANDIDATES:
-            if cand.lower() in col.lower() and col not in matched:
-                matched.append(col)
-                break
+        col_lower = col.lower()
+        if any(cand in col_lower for cand in ["accel_x", "ax"]):
+            matched.append((col, "x"))
+        elif any(cand in col_lower for cand in ["accel_y", "ay"]):
+            matched.append((col, "y"))
+        elif any(cand in col_lower for cand in ["accel_z", "az"]):
+            matched.append((col, "z"))
     if len(matched) < 3:
-        raise ValueError(
-            f"Expected at least 3 acceleration columns, found: {matched}\n"
-            f"Available columns: {list(df.columns)}"
-        )
-    return matched[:3]  # keep exactly three
+        raise ValueError(f"Could not find 3 acceleration columns. Found: {matched}")
+    # Return in x, y, z order
+    matched.sort(key=lambda t: t[1])
+    return [col for col, _ in matched]
 
-
-def estimate_sample_rate(timestamps: pd.Series) -> float:
-    """Estimate sample rate in Hz from a timestamp column (seconds)."""
-    diffs = np.diff(timestamps.values)
-    median_dt = np.median(diffs[diffs > 0])
-    return float(1.0 / median_dt)
 
 # ---------------------------------------------------------------------------
 # Signal processing
 # ---------------------------------------------------------------------------
 
-def select_best_axis(df: pd.DataFrame, accel_cols: list[str]) -> tuple[str, np.ndarray]:
-    """Return the column name and values of the axis with highest variance."""
+def select_best_axis(df, accel_cols):
+    """Return (column_name, signal_array) for the axis with the highest variance."""
     variances = {col: df[col].var() for col in accel_cols}
-    best = max(variances, key=variances.__getitem__)
-    return best, df[best].values
+    best_col = max(variances, key=variances.get)
+    print(f"  Variances: { {c: f'{v:.4f}' for c, v in variances.items()} }")
+    print(f"  Selected axis: {best_col}")
+    return best_col, df[best_col].to_numpy(dtype=float)
 
 
-def lowpass_filter(signal: np.ndarray, cutoff_hz: float,
-                   sample_rate: float, order: int = 4) -> np.ndarray:
+def lowpass_filter(signal, cutoff_hz, sample_rate, order=FILTER_ORDER):
     """Apply a zero-phase Butterworth low-pass filter."""
     nyq = 0.5 * sample_rate
-    norm_cutoff = min(cutoff_hz / nyq, 0.99)  # clamp below Nyquist
-    b, a = butter(order, norm_cutoff, btype="low")
+    normal_cutoff = cutoff_hz / nyq
+    b, a = butter(order, normal_cutoff, btype="low", analog=False)
     return filtfilt(b, a, signal)
 
 
-def detect_candidate_peaks(filtered: np.ndarray,
-                            min_distance: int,
-                            min_prominence: float) -> np.ndarray:
-    """Find all candidate peaks in the filtered signal."""
-    peaks, _ = find_peaks(
-        filtered,
-        distance=min_distance,
-        prominence=min_prominence,
-    )
-    return peaks
-
 # ---------------------------------------------------------------------------
-# Adaptive threshold repetition counter
+# Repetition counting with adaptive threshold
 # ---------------------------------------------------------------------------
 
-def count_reps(filtered: np.ndarray,
-               candidate_peaks: np.ndarray,
-               threshold_factor: float = ADAPTIVE_THRESHOLD_FACTOR,
-               seed_threshold: float = SEED_THRESHOLD,
-               min_distance: int = MIN_PEAK_DISTANCE_SAMPLES) -> tuple[list[int], list[float]]:
+def count_reps(filtered_signal):
     """
-    Walk through candidate peaks and count a rep whenever a peak exceeds
-    the adaptive threshold T = factor * mean(last two valid peak amplitudes).
+    Detect peaks and count reps using an adaptive threshold.
 
     Returns
     -------
-    counted_indices : list of sample indices that were counted as reps
-    thresholds_at_count : adaptive threshold value at each counted peak
+    rep_indices : list[int]   — sample indices of counted reps
+    rep_count   : int
     """
-    last_two: list[float] = []      # amplitudes of the two most-recent counted peaks
-    counted: list[int] = []
-    thresholds: list[float] = []
-    last_counted_idx = -min_distance  # allow the very first peak to be counted
+    # Find all candidate peaks (no height filter yet, only distance)
+    candidate_idx, _ = find_peaks(filtered_signal,
+                                  distance=MIN_PEAK_DISTANCE_SAMPLES)
 
-    for idx in candidate_peaks:
-        amp = float(filtered[idx])
+    rep_indices = []
+    last_two_amplitudes = []  # rolling buffer of the last two counted peak values
+    threshold = SEED_THRESHOLD  # bootstrap threshold
 
-        # Compute current threshold
-        if len(last_two) < 2:
-            threshold = seed_threshold
-        else:
-            threshold = threshold_factor * np.mean(last_two)
+    for idx in candidate_idx:
+        amplitude = filtered_signal[idx]
 
-        # Enforce minimum distance between counted peaks
-        if (idx - last_counted_idx) < min_distance:
-            continue
+        if amplitude > threshold:
+            rep_indices.append(idx)
 
-        if amp >= threshold:
-            counted.append(idx)
-            thresholds.append(threshold)
-            last_two = (last_two + [amp])[-2:]  # keep only the last two
-            last_counted_idx = idx
+            # Update rolling buffer
+            last_two_amplitudes.append(amplitude)
+            if len(last_two_amplitudes) > 2:
+                last_two_amplitudes.pop(0)
 
-    return counted, thresholds
+            # Recompute threshold once we have two valid peaks
+            if len(last_two_amplitudes) == 2:
+                threshold = ADAPTIVE_THRESHOLD_FACTOR * np.mean(last_two_amplitudes)
+
+    return rep_indices, len(rep_indices)
+
 
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
 
-def plot_results(raw: np.ndarray,
-                 filtered: np.ndarray,
-                 counted_peaks: list[int],
-                 axis_name: str,
-                 filename: str) -> None:
-    """Plot raw signal, filtered signal, and counted-rep markers."""
-    rep_count = len(counted_peaks)
-    samples = np.arange(len(raw))
+def plot_results(df, accel_cols, best_col, raw_signal, filtered_signal,
+                 rep_indices, rep_count, title):
+    """Two-panel figure: all raw axes | selected axis with counted reps."""
+    samples = np.arange(len(raw_signal))
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
+    fig.suptitle(title, fontsize=13)
 
-    ax.plot(samples, raw, color="lightsteelblue", linewidth=0.8,
-            alpha=0.7, label=f"Raw {axis_name}")
-    ax.plot(samples, filtered, color="steelblue", linewidth=1.5,
-            label="Filtered")
+    # --- Plot 1: all raw acceleration axes ---
+    for col in accel_cols:
+        ax1.plot(samples, df[col].to_numpy(dtype=float), label=col)
+    ax1.set_ylabel("Acceleration")
+    ax1.set_title("Raw acceleration — all axes")
+    ax1.legend(loc="upper right")
+    ax1.grid(True, alpha=0.3)
 
-    if counted_peaks:
-        ax.plot(counted_peaks, filtered[counted_peaks],
-                "rv", markersize=10, zorder=5, label=f"Counted rep")
-
-    ax.set_xlabel("Sample index")
-    ax.set_ylabel("Acceleration (g)")
-    ax.set_title(f"{filename}  —  Reps counted: {rep_count}  (axis: {axis_name})")
-    ax.legend(loc="upper right")
-    ax.grid(True, alpha=0.3)
+    # --- Plot 2: selected axis + counted reps ---
+    ax2.plot(samples, raw_signal, color="steelblue", label=f"{best_col} (raw)")
+    ax2.plot(samples, filtered_signal, color="orange", linewidth=1.5,
+             label="filtered")
+    if rep_indices:
+        ax2.scatter(rep_indices, filtered_signal[rep_indices],
+                    color="red", zorder=5, label="counted rep")
+    ax2.set_xlabel("Sample")
+    ax2.set_ylabel("Acceleration")
+    ax2.set_title(f"Selected axis: {best_col}  |  Reps counted: {rep_count}")
+    ax2.legend(loc="upper right")
+    ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.show()
 
+
 # ---------------------------------------------------------------------------
-# Main pipeline
+# Per-file pipeline
 # ---------------------------------------------------------------------------
 
-def process_file(filepath: str) -> None:
+def process_file(filepath):
     filename = os.path.basename(filepath)
-    print(f"\n{'='*60}")
-    print(f"Processing: {filename}")
+    full_path = os.path.join(DATA_DIR, filepath)
 
-    # 1. Load data
-    df = load_csv(filepath)
+    if not os.path.exists(full_path):
+        print(f"Skipping '{filename}' — file not found in {DATA_DIR}")
+        return
 
-    # 2. Identify acceleration columns
+    print(f"\nProcessing: {filename}")
+
+    df = load_csv(full_path)
     accel_cols = find_accel_columns(df)
     print(f"  Acceleration columns: {accel_cols}")
 
-    # 3. Estimate sample rate
-    if "timestamp" in df.columns:
-        sample_rate = estimate_sample_rate(df["timestamp"])
-    else:
-        sample_rate = 25.0  # fallback default
-        print(f"  Warning: no timestamp column — assuming {sample_rate} Hz")
-    print(f"  Estimated sample rate: {sample_rate:.1f} Hz")
+    best_col, raw_signal = select_best_axis(df, accel_cols)
 
-    # 4. Select axis with highest variance
-    best_axis, raw_signal = select_best_axis(df, accel_cols)
-    print(f"  Best axis (highest variance): {best_axis}")
+    filtered_signal = lowpass_filter(raw_signal, FILTER_CUTOFF_HZ, SAMPLE_RATE)
 
-    # 5. Low-pass filter
-    filtered = lowpass_filter(raw_signal, FILTER_CUTOFF_HZ, sample_rate, FILTER_ORDER)
+    rep_indices, rep_count = count_reps(filtered_signal)
+    print(f"  Repetitions counted: {rep_count}")
 
-    # 6. Candidate peaks
-    candidates = detect_candidate_peaks(
-        filtered, MIN_PEAK_DISTANCE_SAMPLES, MIN_PEAK_PROMINENCE
-    )
-    print(f"  Candidate peaks found: {len(candidates)}")
-
-    # 7 & 8. Adaptive threshold → count reps
-    counted, _ = count_reps(filtered, candidates)
-    print(f"  Repetitions counted: {len(counted)}")
-
-    # 9. Plot
-    plot_results(raw_signal, filtered, counted, best_axis, filename)
+    title = f"{filename}  —  {rep_count} reps"
+    plot_results(df, accel_cols, best_col, raw_signal, filtered_signal,
+                 rep_indices, rep_count, title)
 
 
-def main() -> None:
-    for fname in FILES:
-        fpath = os.path.join(DATA_DIR, fname)
-        if not os.path.isfile(fpath):
-            print(f"Skipping '{fname}' — file not found in {DATA_DIR}")
-            continue
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main():
+    for fpath in FILES:
         process_file(fpath)
 
 
