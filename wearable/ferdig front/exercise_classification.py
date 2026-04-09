@@ -2,6 +2,7 @@ import asyncio
 from bleak import BleakScanner, BleakClient
 from dotenv import load_dotenv
 import os
+from dashboard_sync import update_count
 
 load_dotenv()
 DEVICE_NAME = "CogitoIMU"
@@ -18,10 +19,12 @@ def gest_callback(sender, data):
     if gesture == "biceps-curl" and float(confidence) > 0.8:
         global bicep_curl_counter
         bicep_curl_counter += 1
+        update_count('bicep_curl_counter', bicep_curl_counter)
         print(f"Bicep Curl Count: {bicep_curl_counter}")
     elif gesture == "shoulder-press" and float(confidence) > 0.8:
         global shoulder_press_counter
         shoulder_press_counter += 1
+        update_count('shoulder_press_counter', shoulder_press_counter)
         print(f"Shoulder Press Count: {shoulder_press_counter}")
 
     print(
