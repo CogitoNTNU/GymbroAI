@@ -7,11 +7,26 @@ load_dotenv()
 DEVICE_NAME = "CogitoIMU"
 GEST_UUID = os.getenv("UUID2")
 
+bicep_curl_counter = 0
+shoulder_press_counter = 0
+
 
 def gest_callback(sender, data):
     data = data.decode()
     gesture, confidence = data.split("|")
     print(f"Gesture: {gesture}, Confidence: {confidence}")
+    if gesture == "biceps-curl" and float(confidence) > 0.8:
+        global bicep_curl_counter
+        bicep_curl_counter += 1
+        print(f"Bicep Curl Count: {bicep_curl_counter}")
+    elif gesture == "shoulder-press" and float(confidence) > 0.8:
+        global shoulder_press_counter
+        shoulder_press_counter += 1
+        print(f"Shoulder Press Count: {shoulder_press_counter}")
+
+    print(
+        f"Current Counts - Bicep Curls: {bicep_curl_counter}, Shoulder Presses: {shoulder_press_counter}"
+    )
 
 
 async def main():
