@@ -1,0 +1,25 @@
+{
+  "global_config": {
+    "switch_progress_threshold": 0.15
+  },
+  "exercise_configs": {
+    "squat_config": {
+      "tracked_value": "(left_hip_knee_ankle + right_hip_knee_ankle) / 2",
+      "top_threshold": 168.78215484619142,
+      "bottom_threshold": 150.0542938232422,
+      "count_at": "bottom"
+    },
+    "curl_config": {
+      "tracked_value": "(left_shoulder_elbow_wrist + right_shoulder_elbow_wrist) / 2",
+      "top_threshold": 54.23072860717774,
+      "bottom_threshold": 142.59662181854247,
+      "count_at": "top"
+    },
+    "shoulder_press_config": {
+      "tracked_value": "(left_shoulder_elbow_wrist + right_shoulder_elbow_wrist) / 2",
+      "top_threshold": 132.6403498840332,
+      "bottom_threshold": 53.61002319335938,
+      "count_at": "top"
+    }
+  }
+}
