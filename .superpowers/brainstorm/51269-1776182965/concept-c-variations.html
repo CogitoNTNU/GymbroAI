@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymbroAI — Concept C Variations</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0c;
+    color: #e8e8ec;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 28px 20px 40px;
+  }
+
+  h1 { font-size: 20px; font-weight: 700; text-align: center; color: #fff; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 28px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .card {
+    border: 2px solid #1c1c22;
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    background: #101014;
+    position: relative;
+  }
+  .card:hover { border-color: #3a3a46; transform: translateY(-3px); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+  .card.selected { border-color: #ff8c00; box-shadow: 0 0 0 1px #ff8c00, 0 10px 40px rgba(255,140,0,0.2); }
+  .card.selected .sel-badge { display: block; }
+  .sel-badge {
+    display: none; position: absolute; top: 10px; right: 10px; z-index: 20;
+    background: #ff8c00; color: #000; font-size: 10px; font-weight: 800;
+    border-radius: 20px; padding: 3px 10px; letter-spacing: 0.5px;
+  }
+
+  .card-header { padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px; }
+  .card-header .badge {
+    width: 26px; height: 26px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  .card-header h3 { font-size: 14px; font-weight: 700; color: #fff; }
+  .card-header p { font-size: 11px; color: #666; margin-top: 1px; }
+
+  /* ── shared mockup frame ── */
+  .frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/10;
+    overflow: hidden;
+  }
+  .bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #1a1614 0%, #0e1318 45%, #111218 75%, #181214 100%);
+  }
+  .figure {
+    position: absolute;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 44%; height: 88%;
+    background: linear-gradient(180deg, #2a2520 0%, #1e1a16 100%);
+    clip-path: polygon(
+      38% 0%, 62% 0%,70% 8%,72% 20%,80% 20%,90% 40%,85% 42%,76% 28%,
+      76% 55%,85% 100%,70% 100%,65% 70%,55% 60%,
+      45% 70%,30% 100%,15% 100%,24% 55%,24% 28%,15% 42%,10% 40%,20% 20%,28% 20%,30% 8%
+    );
+    opacity: 0.55;
+  }
+  .scan {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.05) 3px,rgba(0,0,0,0.05) 4px);
+    pointer-events: none;
+  }
+  .footnote {
+    padding: 8px 14px 12px;
+    font-size: 11px; color: #555;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .tag-pro { color: #3cd450; }
+  .tag-con { color: #ff5555; }
+  .sep { color: #333; }
+
+  /* ══════════════════════════════
+     VARIATION 1: NEON CYBER
+     Electric blue + cyan, glowing outlines,
+     centered giant rep number with ring
+  ══════════════════════════════ */
+  .v1-bg { background: linear-gradient(135deg, #080c14 0%, #060810 45%, #07090f 75%, #080c14 100%); }
+  .v1-scan {
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,180,255,0.015) 2px,rgba(0,180,255,0.015) 3px);
+  }
+
+  /* Corner brackets */
+  .cb { position: absolute; width: 18px; height: 18px; border-style: solid; }
+  .cb-tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+  .cb-tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
+  .cb-bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
+  .cb-br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+  /* V1: centered giant rep */
+  .v1-top-tag {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 180, 255, 0.12);
+    border: 1px solid rgba(0, 180, 255, 0.4);
+    border-radius: 20px; padding: 3px 16px;
+    font-size: 8px; font-weight: 800; letter-spacing: 2.5px;
+    color: #00c8ff; text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 0 0 16px rgba(0,180,255,0.2), inset 0 0 12px rgba(0,180,255,0.05);
+  }
+
+  .v1-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    display: flex; flex-direction: column; align-items: center;
+    pointer-events: none;
+  }
+  .v1-ring-wrap { position: relative; width: 80px; height: 80px; }
+  .v1-rep-over {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .v1-rep-num { font-size: 36px; font-weight: 900; color: #fff; line-height: 1; }
+  .v1-rep-word { font-size: 7px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; text-transform: uppercase; }
+  .v1-dir {
+    margin-top: 4px;
+    font-size: 9px; font-weight: 800; letter-spacing: 2px;
+    color: #00c8ff; text-transform: uppercase;
+    background: rgba(0,200,255,0.1); border-radius: 10px;
+    padding: 2px 10px;
+    border: 1px solid rgba(0,200,255,0.25);
+  }
+
+  /* V1 bottom feedback */
+  .v1-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+    padding: 20px 10px 8px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .v1-form-chip {
+    border: 1px solid rgba(0,200,255,0.35);
+    background: rgba(0,200,255,0.08);
+    border-radius: 20px; padding: 4px 12px;
+    font-size: 9px; font-weight: 700; color: #00c8ff;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .v1-form-chip::before {
+    content: '✓'; width: 13px; height: 13px; border-radius: 50%;
+    background: #00c8ff; color: #000; font-size: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .v1-emoji { font-size: 24px; filter: drop-shadow(0 0 8px rgba(0,200,255,0.4)); }
+
+  /* ══════════════════════════════
+     VARIATION 2: SPORT BROADCAST
+     Clean black bar at bottom, top exercise badge,
+     no corner brackets — polished/pro feel
+  ══════════════════════════════ */
+  .v2-top {
+    position: absolute; top: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+    padding: 8px 10px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .v2-exercise-pill {
+    background: #ff8c00;
+    border-radius: 4px 12px 12px 4px;
+    padding: 4px 14px 4px 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .v2-pill-accent {
+    width: 3px; height: 20px; border-radius: 2px;
+    background: #fff; opacity: 0.7;
+  }
+  .v2-pill-text { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: #fff; }
+  .v2-live-dot {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 9px; font-weight: 700; color: #fff; letter-spacing: 1px;
+  }
+  .v2-live-dot::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: #ff3333;
+    box-shadow: 0 0 6px #ff3333;
+    animation: blink 1.2s infinite;
+    display: inline-block;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Left column: big stat */
+  .v2-left-stat {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    background: rgba(0,0,0,0.75);
+    border-right: 3px solid #ff8c00;
+    padding: 8px 14px 8px 8px;
+    display: flex; flex-direction: column; align-items: flex-start;
+  }
+  .v2-big-num { font-size: 48px; font-weight: 900; color: #fff; line-height: 1; }
+  .v2-big-label { font-size: 8px; font-weight: 700; letter-spacing: 2px; color: #ff8c00; text-transform: uppercase; }
+
+  /* Bottom ticker */
+  .v2-ticker {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.88);
+    border-top: 2px solid #ff8c00;
+    padding: 5px 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .v2-ticker-block {
+    display: flex; align-items: center; gap: 6px;
+    padding-right: 10px;
+    border-right: 1px solid rgba(255,255,255,0.12);
+  }
+  .v2-ticker-block:last-child { border-right: none; }
+  .v2-ticker-label { font-size: 7px; font-weight: 700; letter-spacing: 1.5px; color: #888; text-transform: uppercase; }
+  .v2-ticker-value { font-size: 12px; font-weight: 800; color: #fff; }
+  .v2-ticker-value.good { color: #3cd450; }
+  .v2-ticker-value.dir { color: #ff8c00; }
+  .v2-ticker-emoji { font-size: 18px; margin-left: auto; }
+
+  /* ══════════════════════════════
+     VARIATION 3: CORNER COMMAND
+     Dark corners with stats, rest is clear —
+     max camera visibility, accent color = orange glow
+  ══════════════════════════════ */
+  .v3-tl {
+    position: absolute; top: 0; left: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, transparent 70%);
+    padding: 8px 24px 24px 8px;
+    min-width: 110px;
+  }
+  .v3-exercise { font-size: 8px; font-weight: 700; letter-spacing: 2px; color: #ff8c00; text-transform: uppercase; margin-bottom: 3px; }
+  .v3-rep-row { display: flex; align-items: baseline; gap: 5px; }
+  .v3-rep-big { font-size: 44px; font-weight: 900; color: #fff; line-height: 1; text-shadow: 0 0 20px rgba(255,140,0,0.3); }
+  .v3-rep-unit { font-size: 10px; font-weight: 700; color: #888; letter-spacing: 1px; text-transform: uppercase; }
+  .v3-dir-tag {
+    margin-top: 2px; display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(255,140,0,0.15); border: 1px solid rgba(255,140,0,0.3);
+    border-radius: 4px; padding: 2px 7px;
+    font-size: 8px; font-weight: 800; letter-spacing: 1px; color: #ff8c00;
+  }
+
+  .v3-tr {
+    position: absolute; top: 0; right: 0;
+    background: linear-gradient(225deg, rgba(0,0,0,0.8) 0%, transparent 70%);
+    padding: 8px 8px 24px 24px;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+    min-width: 80px;
+  }
+  .v3-form-label { font-size: 7px; font-weight: 700; letter-spacing: 1.5px; color: #888; text-transform: uppercase; }
+  .v3-form-ring { position: relative; width: 46px; height: 46px; }
+  .v3-form-over {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .v3-form-pct { font-size: 11px; font-weight: 800; color: #fff; }
+  .v3-form-sub { font-size: 6px; color: #888; }
+
+  .v3-bl {
+    position: absolute; bottom: 0; left: 0;
+    background: linear-gradient(45deg, rgba(0,0,0,0.85) 0%, transparent 70%);
+    padding: 24px 24px 8px 8px;
+    min-width: 150px;
+  }
+  .v3-feedback-label { font-size: 7px; font-weight: 700; letter-spacing: 1.5px; color: #888; text-transform: uppercase; margin-bottom: 3px; }
+  .v3-feedback-text { font-size: 10px; font-weight: 700; color: #3cd450; }
+
+  .v3-br {
+    position: absolute; bottom: 0; right: 0;
+    background: linear-gradient(315deg, rgba(0,0,0,0.8) 0%, transparent 70%);
+    padding: 24px 8px 8px 24px;
+    display: flex; align-items: flex-end; justify-content: flex-end;
+  }
+  .v3-emoji { font-size: 30px; filter: drop-shadow(0 0 10px rgba(255,200,0,0.45)); }
+
+  /* Glow ring on person */
+  .v3-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -42%);
+    width: 55%; height: 60%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(255,140,0,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>Concept C — 3 Variations</h1>
+<p class="subtitle">All gamified AR. Pick your flavor. Click to select.</p>
+
+<div class="grid">
+
+  <!-- ══ VARIATION 1: NEON CYBER ══ -->
+  <div class="card" onclick="pick(this,'c1')">
+    <div class="sel-badge">SELECTED</div>
+    <div class="card-header">
+      <div class="badge" style="background:rgba(0,180,255,0.12);color:#00c8ff;">C1</div>
+      <div>
+        <h3>Neon Cyber</h3>
+        <p>Electric blue, centered ring, full-screen glow</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="bg v1-bg"></div>
+      <div class="scan v1-scan"></div>
+      <div class="figure" style="opacity:0.5;"></div>
+
+      <!-- Skeleton — cyan tinted -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="38" y1="22" x2="62" y2="22" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="38" y1="22" x2="30" y2="38" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="30" y1="38" x2="26" y2="52" stroke="#00ffcc" stroke-width="1.5" opacity="0.9"/>
+        <line x1="62" y1="22" x2="70" y2="38" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="70" y1="38" x2="74" y2="52" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="38" y1="22" x2="38" y2="55" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="62" y1="22" x2="62" y2="55" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="38" y1="55" x2="62" y2="55" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="44" y1="55" x2="40" y2="75" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="40" y1="75" x2="38" y2="95" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="56" y1="55" x2="60" y2="75" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <line x1="60" y1="75" x2="62" y2="95" stroke="#00c8ff" stroke-width="0.9" opacity="0.6"/>
+        <!-- Active joint highlight -->
+        <circle cx="30" cy="38" r="3.5" fill="none" stroke="#00ffcc" stroke-width="1.5" opacity="0.9"/>
+        <circle cx="30" cy="38" r="1.5" fill="#00ffcc"/>
+        <circle cx="26" cy="52" r="2" fill="none" stroke="#00ffcc" stroke-width="1" opacity="0.7"/>
+        <circle cx="26" cy="52" r="1" fill="#00ffcc" opacity="0.8"/>
+        <circle cx="38" cy="22" r="1.3" fill="#00c8ff" opacity="0.8"/>
+        <circle cx="62" cy="22" r="1.3" fill="#00c8ff" opacity="0.8"/>
+        <circle cx="70" cy="38" r="1.3" fill="#00c8ff" opacity="0.8"/>
+        <circle cx="74" cy="52" r="1.3" fill="#00c8ff" opacity="0.7"/>
+      </svg>
+
+      <!-- Corner brackets — cyan -->
+      <div style="position:absolute;inset:0;pointer-events:none;">
+        <div class="cb cb-tl" style="border-color:rgba(0,200,255,0.5);"></div>
+        <div class="cb cb-tr" style="border-color:rgba(0,200,255,0.5);"></div>
+        <div class="cb cb-bl" style="border-color:rgba(0,200,255,0.5);"></div>
+        <div class="cb cb-br" style="border-color:rgba(0,200,255,0.5);"></div>
+      </div>
+
+      <!-- Top tag -->
+      <div class="v1-top-tag">BICEP CURL</div>
+
+      <!-- Center ring + rep -->
+      <div class="v1-center">
+        <div class="v1-ring-wrap">
+          <svg viewBox="0 0 80 80" width="80" height="80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(0,200,255,0.12)" stroke-width="5"/>
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#00c8ff" stroke-width="5"
+              stroke-dasharray="213.6" stroke-dashoffset="148" stroke-linecap="round"
+              transform="rotate(-90 40 40)" filter="url(#glow1)"/>
+            <defs>
+              <filter id="glow1" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+          </svg>
+          <div class="v1-rep-over">
+            <span class="v1-rep-num">2</span>
+            <span class="v1-rep-word">reps</span>
+          </div>
+        </div>
+        <div class="v1-dir">↑ UP</div>
+      </div>
+
+      <!-- Bottom -->
+      <div class="v1-bottom">
+        <div class="v1-form-chip">Good form! Keep it up</div>
+        <div class="v1-emoji">😤</div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <span class="tag-pro">✓ Most immersive</span><span class="sep">·</span>
+      <span class="tag-pro">✓ Centered focus</span><span class="sep">·</span>
+      <span class="tag-con">✗ Covers body</span>
+    </div>
+  </div>
+
+  <!-- ══ VARIATION 2: SPORT BROADCAST ══ -->
+  <div class="card" onclick="pick(this,'c2')">
+    <div class="sel-badge">SELECTED</div>
+    <div class="card-header">
+      <div class="badge" style="background:rgba(255,140,0,0.12);color:#ff8c00;">C2</div>
+      <div>
+        <h3>Sport Broadcast</h3>
+        <p>Top badge + bottom ticker — pro TV overlay feel</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="bg"></div>
+      <div class="figure"></div>
+
+      <!-- Skeleton — green + orange highlight -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="38" y1="22" x2="62" y2="22" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="38" y1="22" x2="30" y2="38" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="30" y1="38" x2="26" y2="52" stroke="#ff8c00" stroke-width="1.8" opacity="0.95"/>
+        <line x1="62" y1="22" x2="70" y2="38" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="70" y1="38" x2="74" y2="52" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="38" y1="22" x2="38" y2="55" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="62" y1="22" x2="62" y2="55" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="38" y1="55" x2="62" y2="55" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="44" y1="55" x2="40" y2="75" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="40" y1="75" x2="38" y2="95" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="56" y1="55" x2="60" y2="75" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <line x1="60" y1="75" x2="62" y2="95" stroke="#3cd450" stroke-width="0.9" opacity="0.7"/>
+        <circle cx="30" cy="38" r="3" fill="none" stroke="#ff8c00" stroke-width="1.5" opacity="0.9"/>
+        <circle cx="30" cy="38" r="1.5" fill="#ff8c00"/>
+        <circle cx="38" cy="22" r="1.3" fill="#3cd450" opacity="0.9"/>
+        <circle cx="62" cy="22" r="1.3" fill="#3cd450" opacity="0.9"/>
+        <circle cx="70" cy="38" r="1.3" fill="#3cd450" opacity="0.9"/>
+        <circle cx="26" cy="52" r="1.3" fill="#ff8c00" opacity="0.9"/>
+        <circle cx="74" cy="52" r="1.3" fill="#3cd450" opacity="0.7"/>
+        <circle cx="44" cy="55" r="1.3" fill="#3cd450" opacity="0.7"/>
+        <circle cx="56" cy="55" r="1.3" fill="#3cd450" opacity="0.7"/>
+      </svg>
+
+      <!-- Top bar -->
+      <div class="v2-top">
+        <div class="v2-exercise-pill">
+          <div class="v2-pill-accent"></div>
+          <span class="v2-pill-text">BICEP CURL</span>
+        </div>
+        <div class="v2-live-dot">LIVE</div>
+      </div>
+
+      <!-- Left big rep -->
+      <div class="v2-left-stat">
+        <div class="v2-big-label">REPS</div>
+        <div class="v2-big-num">2</div>
+      </div>
+
+      <!-- Bottom ticker -->
+      <div class="v2-ticker">
+        <div class="v2-ticker-block">
+          <div>
+            <div class="v2-ticker-label">DIRECTION</div>
+            <div class="v2-ticker-value dir">↑ UP</div>
+          </div>
+        </div>
+        <div class="v2-ticker-block">
+          <div>
+            <div class="v2-ticker-label">FORM</div>
+            <div class="v2-ticker-value good">Good form!</div>
+          </div>
+        </div>
+        <div class="v2-ticker-block">
+          <div>
+            <div class="v2-ticker-label">STATUS</div>
+            <div class="v2-ticker-value good">Active</div>
+          </div>
+        </div>
+        <div class="v2-ticker-emoji">😤</div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <span class="tag-pro">✓ Familiar / polished</span><span class="sep">·</span>
+      <span class="tag-pro">✓ Clear hierarchy</span><span class="sep">·</span>
+      <span class="tag-con">✗ Less "techy"</span>
+    </div>
+  </div>
+
+  <!-- ══ VARIATION 3: CORNER COMMAND ══ -->
+  <div class="card" onclick="pick(this,'c3')">
+    <div class="sel-badge">SELECTED</div>
+    <div class="card-header">
+      <div class="badge" style="background:rgba(255,100,0,0.12);color:#ff6400;">C3</div>
+      <div>
+        <h3>Corner Command</h3>
+        <p>HUD pushed to corners — max camera visibility</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="bg" style="background: linear-gradient(135deg, #151210 0%, #0e1318 45%, #111218 75%, #181412 100%);"></div>
+      <div class="figure"></div>
+      <div class="v3-glow"></div>
+
+      <!-- Skeleton — orange highlights on active -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="38" y1="22" x2="62" y2="22" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="38" y1="22" x2="30" y2="38" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="30" y1="38" x2="26" y2="52" stroke="#ff6400" stroke-width="2" opacity="1"/>
+        <line x1="62" y1="22" x2="70" y2="38" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="70" y1="38" x2="74" y2="52" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="38" y1="22" x2="38" y2="55" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="62" y1="22" x2="62" y2="55" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="38" y1="55" x2="62" y2="55" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="44" y1="55" x2="40" y2="75" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="40" y1="75" x2="38" y2="95" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="56" y1="55" x2="60" y2="75" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <line x1="60" y1="75" x2="62" y2="95" stroke="#00cc44" stroke-width="0.8" opacity="0.65"/>
+        <!-- Active chain glows -->
+        <circle cx="30" cy="38" r="4" fill="none" stroke="#ff6400" stroke-width="1.5" opacity="0.8"/>
+        <circle cx="30" cy="38" r="2" fill="#ff6400"/>
+        <circle cx="26" cy="52" r="2.5" fill="none" stroke="#ff6400" stroke-width="1.2" opacity="0.7"/>
+        <circle cx="26" cy="52" r="1.2" fill="#ff6400" opacity="0.85"/>
+        <circle cx="38" cy="22" r="1.3" fill="#00cc44" opacity="0.8"/>
+        <circle cx="62" cy="22" r="1.3" fill="#00cc44" opacity="0.8"/>
+        <circle cx="70" cy="38" r="1.3" fill="#00cc44" opacity="0.7"/>
+        <circle cx="74" cy="52" r="1.3" fill="#00cc44" opacity="0.6"/>
+      </svg>
+
+      <!-- TOP LEFT -->
+      <div class="v3-tl">
+        <div class="v3-exercise">Bicep Curl</div>
+        <div class="v3-rep-row">
+          <span class="v3-rep-big">2</span>
+          <span class="v3-rep-unit">reps</span>
+        </div>
+        <div class="v3-dir-tag">↑ UP</div>
+      </div>
+
+      <!-- TOP RIGHT — form ring -->
+      <div class="v3-tr">
+        <div class="v3-form-label">Form</div>
+        <div class="v3-form-ring">
+          <svg viewBox="0 0 46 46" width="46" height="46">
+            <circle cx="23" cy="23" r="19" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+            <circle cx="23" cy="23" r="19" fill="none" stroke="#ff6400" stroke-width="4"
+              stroke-dasharray="119.4" stroke-dashoffset="36" stroke-linecap="round"
+              transform="rotate(-90 23 23)"/>
+          </svg>
+          <div class="v3-form-over">
+            <span class="v3-form-pct">70%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM LEFT — feedback -->
+      <div class="v3-bl">
+        <div class="v3-feedback-label">Form feedback</div>
+        <div class="v3-feedback-text">Good form! Keep it up</div>
+      </div>
+
+      <!-- BOTTOM RIGHT — emoji -->
+      <div class="v3-br">
+        <div class="v3-emoji">😤</div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <span class="tag-pro">✓ Max camera space</span><span class="sep">·</span>
+      <span class="tag-pro">✓ Clean center</span><span class="sep">·</span>
+      <span class="tag-con">✗ Corners can clip</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function pick(el, choice) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    if (window.logEvent) window.logEvent({type:'click', choice, text: el.querySelector('h3').textContent});
+  }
+</script>
+</body>
+</html>

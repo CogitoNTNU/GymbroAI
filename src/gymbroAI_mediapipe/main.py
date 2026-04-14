@@ -56,7 +56,7 @@ from graphics.draw_on_screen import (
 
 WINDOW_NAME = "Exercise Classifier"
 
-# Set to True to show the debug visualizer on startup (toggle with V key).
+# Set to True to show the signal graph on startup (toggle with V key).
 DEBUG_MODE = True
 
 # Approximate frame interval for MediaPipe VIDEO mode timestamp (~30 fps).
@@ -143,7 +143,7 @@ def main():
     )
 
     # -- Camera and window. --
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     if SHOW_FULLSCREEN_WINDOW:
         cv2.setWindowProperty(
@@ -176,7 +176,7 @@ def main():
 
             if result.pose_landmarks:
                 frame = draw_landmarks_on_image(
-                    frame, result, BODY_LANDMARK_INDICES, LANDMARK_NAMES
+                    frame, result, BODY_LANDMARK_INDICES, LANDMARK_NAMES, displayed_exercise
                 )
 
                 curr_landmarks = landmarks_to_dict(result.pose_landmarks[0])

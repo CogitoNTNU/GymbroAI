@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymbroAI — UI Concepts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0f;
+    color: #e8e8ec;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 6px;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 36px;
+  }
+
+  .concepts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  .concept-card {
+    border: 2px solid #1e1e24;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    background: #111116;
+  }
+  .concept-card:hover {
+    border-color: #444;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .concept-card.selected {
+    border-color: #ff8c00;
+    box-shadow: 0 0 0 1px #ff8c00, 0 8px 40px rgba(255,140,0,0.2);
+  }
+
+  .concept-label {
+    padding: 16px 18px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .concept-label .badge {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .concept-label h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .concept-label p {
+    font-size: 12px;
+    color: #888;
+    margin-top: 2px;
+  }
+
+  /* ——— MOCKUP FRAME ——— */
+  .mockup-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    background: #1a1a1a;
+  }
+
+  /* Fake camera feed — blurred abstract "room" */
+  .camera-bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #1c1612 0%, #0e1318 40%, #111218 70%, #181214 100%);
+  }
+  .camera-bg::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 80% at 50% 60%, rgba(60,50,40,0.4) 0%, transparent 70%),
+      radial-gradient(ellipse 30% 30% at 30% 80%, rgba(40,30,20,0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 20% 40% at 70% 90%, rgba(30,25,20,0.2) 0%, transparent 60%);
+  }
+  /* Silhouette person */
+  .person-silhouette {
+    position: absolute;
+    bottom: 0;
+    left: 50%; transform: translateX(-50%);
+    width: 42%;
+    height: 88%;
+    background: linear-gradient(180deg, #2a2520 0%, #1e1a16 100%);
+    clip-path: polygon(
+      38% 0%, 62% 0%,
+      70% 8%, 72% 20%,
+      80% 20%, 90% 40%, 85% 42%, 76% 28%,
+      76% 55%,
+      85% 100%, 70% 100%,
+      65% 70%, 55% 60%,
+      45% 70%, 30% 100%,
+      15% 100%, 24% 55%,
+      24% 28%, 15% 42%, 10% 40%, 20% 20%,
+      28% 20%,
+      30% 8%
+    );
+    opacity: 0.6;
+  }
+  /* Skeleton lines on person */
+  .skeleton-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* ——————————————————————
+     CONCEPT A: Minimal Ghost HUD
+  —————————————————————— */
+  .hud-a { position: absolute; inset: 0; }
+
+  .a-pill {
+    position: absolute;
+    background: rgba(8,8,12,0.75);
+    backdrop-filter: blur(8px);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .a-exercise {
+    top: 10px; left: 10px;
+    padding: 5px 12px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #ff8c00;
+    text-transform: uppercase;
+  }
+  .a-reps {
+    top: 38px; left: 10px;
+    padding: 4px 14px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .a-reps .rep-num {
+    font-size: 28px; font-weight: 800; color: #fff; line-height: 1;
+  }
+  .a-reps .rep-dir {
+    font-size: 11px; font-weight: 700; color: #ff8c00; letter-spacing: 1px;
+  }
+  .a-feedback {
+    bottom: 10px; left: 10px;
+    right: 40%;
+    padding: 5px 12px;
+    font-size: 10px; font-weight: 600; color: #3cd450;
+    letter-spacing: 0.5px;
+  }
+  .a-emoji {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    font-size: 28px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8));
+  }
+  .a-sparkline {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 28%;
+    background: rgba(8,8,12,0.72);
+    backdrop-filter: blur(8px);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.07);
+    padding: 7px 8px;
+  }
+  .a-spark-label {
+    font-size: 8px; font-weight: 700; letter-spacing: 1px;
+    color: #888; text-transform: uppercase; margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .a-spark-label span { color: #ff8c00; }
+  .spark-canvas {
+    width: 100%; height: 28px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    position: relative; overflow: hidden;
+  }
+  .spark-line {
+    position: absolute; bottom: 0; left: 0; right: 0; top: 0;
+  }
+  .spark-line-predicted {
+    margin-top: 6px;
+  }
+
+  /* ——————————————————————
+     CONCEPT B: Dashboard Panel
+  —————————————————————— */
+  .hud-b { position: absolute; inset: 0; display: flex; }
+  .b-camera { flex: 1; position: relative; }
+  .b-panel {
+    width: 32%;
+    background: rgba(6,6,10,0.92);
+    backdrop-filter: blur(16px);
+    border-left: 1px solid rgba(255,255,255,0.08);
+    display: flex; flex-direction: column;
+    padding: 10px 10px;
+    gap: 8px;
+  }
+  .b-section-label {
+    font-size: 8px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #555;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 2px;
+  }
+  .b-exercise-name {
+    font-size: 13px; font-weight: 800;
+    color: #ff8c00; letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .b-rep-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+  }
+  .b-rep-big {
+    font-size: 38px; font-weight: 900; color: #fff; line-height: 1;
+  }
+  .b-rep-sub { display: flex; flex-direction: column; gap: 2px; }
+  .b-rep-dir {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    color: #ff8c00; text-transform: uppercase;
+    background: rgba(255,140,0,0.12);
+    border-radius: 4px; padding: 2px 6px;
+    display: inline-block;
+  }
+  .b-rep-label { font-size: 8px; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+  .b-feedback-row {
+    background: rgba(60,212,80,0.08);
+    border: 1px solid rgba(60,212,80,0.2);
+    border-radius: 6px;
+    padding: 5px 7px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .b-feedback-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #3cd450; flex-shrink: 0;
+    box-shadow: 0 0 6px #3cd450;
+  }
+  .b-feedback-text {
+    font-size: 9px; font-weight: 600; color: #3cd450;
+  }
+  .b-spark-block { display: flex; flex-direction: column; gap: 3px; }
+  .b-spark-title { font-size: 8px; color: #666; }
+  .b-spark-title span { color: #ff8c00; }
+  .b-spark-bg {
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px; height: 22px;
+    position: relative; overflow: hidden;
+  }
+  .b-emoji-row {
+    display: flex; justify-content: center; align-items: center;
+    padding: 4px 0;
+    font-size: 26px;
+    filter: drop-shadow(0 0 8px rgba(255,200,0,0.3));
+  }
+  /* Corner badge in camera area */
+  .b-badge {
+    position: absolute;
+    top: 8px; left: 8px;
+    background: rgba(8,8,12,0.8);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 9px; font-weight: 700; color: #888;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* ——————————————————————
+     CONCEPT C: Gamified / AR
+  —————————————————————— */
+  .hud-c { position: absolute; inset: 0; }
+
+  /* Big centered rep counter */
+  .c-center {
+    position: absolute;
+    top: 8px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .c-exercise-tag {
+    background: linear-gradient(135deg, #ff6b00, #ff9500);
+    border-radius: 20px;
+    padding: 3px 14px;
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(255,100,0,0.4);
+  }
+
+  /* Corner stats */
+  .c-corner {
+    position: absolute;
+    top: 10px; left: 10px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .c-stat-box {
+    background: rgba(0,0,0,0.65);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-left: 3px solid #ff8c00;
+    border-radius: 0 8px 8px 0;
+    padding: 4px 10px;
+    display: flex; align-items: baseline; gap: 5px;
+  }
+  .c-stat-num {
+    font-size: 26px; font-weight: 900; color: #fff; line-height: 1;
+  }
+  .c-stat-sub {
+    font-size: 9px; font-weight: 700; color: #ff8c00;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* Progress ring */
+  .c-ring-container {
+    position: absolute;
+    bottom: 30px; right: 12px;
+    width: 52px; height: 52px;
+  }
+  .c-ring-label {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 700; color: #fff; text-align: center; line-height: 1.2;
+  }
+
+  /* Feedback bar at bottom */
+  .c-feedback-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.85));
+    padding: 18px 12px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .c-feedback-chip {
+    background: rgba(60,212,80,0.15);
+    border: 1px solid rgba(60,212,80,0.4);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 10px; font-weight: 700; color: #3cd450;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .c-feedback-chip::before {
+    content: '✓';
+    font-size: 9px;
+    background: #3cd450;
+    color: #000;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Scan line effect */
+  .scan-line {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0,0,0,0.04) 3px,
+      rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+  }
+  .corner-brackets {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  .cb {
+    position: absolute;
+    width: 16px; height: 16px;
+    border-color: rgba(255,140,0,0.5);
+    border-style: solid;
+  }
+  .cb-tl { top: 6px; left: 6px; border-width: 2px 0 0 2px; }
+  .cb-tr { top: 6px; right: 6px; border-width: 2px 2px 0 0; }
+  .cb-bl { bottom: 6px; left: 6px; border-width: 0 0 2px 2px; }
+  .cb-br { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; }
+
+  /* Selected indicator */
+  .selected-badge {
+    display: none;
+    position: absolute;
+    top: 12px; right: 12px;
+    background: #ff8c00;
+    color: #000;
+    font-size: 11px; font-weight: 800;
+    border-radius: 20px;
+    padding: 3px 12px;
+    letter-spacing: 0.5px;
+    z-index: 10;
+  }
+  .concept-card.selected .selected-badge { display: block; }
+
+  .pros-cons-bar {
+    display: flex; gap: 6px;
+    padding: 10px 14px 14px;
+    font-size: 11px; color: #888;
+  }
+  .pros-cons-bar .pro { color: #3cd450; }
+  .pros-cons-bar .con { color: #ff5555; }
+  .pros-cons-bar .dot { color: #555; margin: 0 2px; }
+  .tag { display: inline-block; background: rgba(255,140,0,0.12); color: #ff8c00;
+    font-size: 10px; border-radius: 4px; padding: 1px 6px; margin-right: 4px;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<h1>GymbroAI — UI Concepts</h1>
+<p class="subtitle">Click a concept to select it. Each mockup shows the live camera overlay.</p>
+
+<div class="concepts">
+
+  <!-- ═══════════════ CONCEPT A ═══════════════ -->
+  <div class="concept-card" onclick="select(this,'a')">
+    <div class="selected-badge">SELECTED</div>
+    <div class="concept-label">
+      <div class="badge" style="background:rgba(255,140,0,0.15);color:#ff8c00;">A</div>
+      <div>
+        <h3>Minimal Ghost HUD</h3>
+        <p>Subtle, transparent pills — camera is the hero</p>
+      </div>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="camera-bg"></div>
+      <div class="person-silhouette"></div>
+
+      <!-- Skeleton -->
+      <svg class="skeleton-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <!-- shoulders -->
+        <line x1="38" y1="22" x2="62" y2="22" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <!-- left arm -->
+        <line x1="38" y1="22" x2="30" y2="38" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <line x1="30" y1="38" x2="26" y2="52" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <!-- right arm -->
+        <line x1="62" y1="22" x2="70" y2="38" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <line x1="70" y1="38" x2="74" y2="52" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <!-- torso -->
+        <line x1="38" y1="22" x2="38" y2="55" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <line x1="62" y1="22" x2="62" y2="55" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <line x1="38" y1="55" x2="62" y2="55" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <!-- left leg -->
+        <line x1="44" y1="55" x2="40" y2="75" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <line x1="40" y1="75" x2="38" y2="95" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <!-- right leg -->
+        <line x1="56" y1="55" x2="60" y2="75" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <line x1="60" y1="75" x2="62" y2="95" stroke="#00cc44" stroke-width="0.8" opacity="0.7"/>
+        <!-- joints -->
+        <circle cx="38" cy="22" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="62" cy="22" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="30" cy="38" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="70" cy="38" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="26" cy="52" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="74" cy="52" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="44" cy="55" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="56" cy="55" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="40" cy="75" r="1.2" fill="#ff3333" opacity="0.9"/>
+        <circle cx="60" cy="75" r="1.2" fill="#ff3333" opacity="0.9"/>
+      </svg>
+
+      <!-- HUD A overlays -->
+      <div class="hud-a">
+        <div class="a-pill a-exercise">CURL</div>
+        <div class="a-pill a-reps">
+          <span class="rep-num">2</span>
+          <span class="rep-dir">UP</span>
+        </div>
+        <div class="a-pill a-feedback">Good form! Keep it up</div>
+        <div class="a-emoji">😤</div>
+
+        <div class="a-sparkline">
+          <div class="a-spark-label">ACTIVE <span>CURL</span></div>
+          <div class="spark-canvas">
+            <svg width="100%" height="100%" viewBox="0 0 100 28" preserveAspectRatio="none">
+              <line x1="0" y1="10" x2="100" y2="10" stroke="#3cd450" stroke-width="0.7" opacity="0.6"/>
+              <line x1="0" y1="22" x2="100" y2="22" stroke="#ff8c00" stroke-width="0.7" opacity="0.6"/>
+              <polyline points="0,24 15,22 30,18 45,12 60,8 75,5 90,8 100,12"
+                stroke="#fff" stroke-width="1.5" fill="none"/>
+              <circle cx="100" cy="12" r="2" fill="#ff8c00"/>
+            </svg>
+          </div>
+          <div class="a-spark-label spark-line-predicted">PREDICTED <span>—</span></div>
+          <div class="spark-canvas">
+            <svg width="100%" height="100%" viewBox="0 0 100 28" preserveAspectRatio="none">
+              <rect width="100" height="28" fill="rgba(255,255,255,0.02)"/>
+              <text x="50" y="17" text-anchor="middle" fill="#555" font-size="7">no data</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros-cons-bar">
+      <span class="pro">✓ Minimal distraction</span>
+      <span class="dot">·</span>
+      <span class="pro">✓ Clean</span>
+      <span class="dot">·</span>
+      <span class="con">✗ Small info</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CONCEPT B ═══════════════ -->
+  <div class="concept-card" onclick="select(this,'b')">
+    <div class="selected-badge">SELECTED</div>
+    <div class="concept-label">
+      <div class="badge" style="background:rgba(100,180,255,0.12);color:#64b4ff;">B</div>
+      <div>
+        <h3>Dashboard Panel</h3>
+        <p>Side panel with full stats — data-forward</p>
+      </div>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="camera-bg"></div>
+      <div class="person-silhouette" style="left: 35%;"></div>
+
+      <svg class="skeleton-svg" viewBox="0 0 100 100" preserveAspectRatio="none" style="width:68%;">
+        <line x1="38" y1="22" x2="62" y2="22" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="38" y1="22" x2="30" y2="38" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="30" y1="38" x2="26" y2="52" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="62" y1="22" x2="70" y2="38" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="70" y1="38" x2="74" y2="52" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="38" y1="22" x2="38" y2="55" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="62" y1="22" x2="62" y2="55" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="38" y1="55" x2="62" y2="55" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="44" y1="55" x2="40" y2="75" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="40" y1="75" x2="38" y2="95" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="56" y1="55" x2="60" y2="75" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <line x1="60" y1="75" x2="62" y2="95" stroke="#00cc44" stroke-width="1" opacity="0.7"/>
+        <circle cx="38" cy="22" r="1.4" fill="#ff3333" opacity="0.9"/>
+        <circle cx="62" cy="22" r="1.4" fill="#ff3333" opacity="0.9"/>
+        <circle cx="30" cy="38" r="1.4" fill="#ff3333" opacity="0.9"/>
+        <circle cx="70" cy="38" r="1.4" fill="#ff3333" opacity="0.9"/>
+        <circle cx="26" cy="52" r="1.4" fill="#ff3333" opacity="0.9"/>
+        <circle cx="74" cy="52" r="1.4" fill="#ff3333" opacity="0.9"/>
+      </svg>
+
+      <div class="hud-b">
+        <div class="b-camera">
+          <div class="b-badge">LIVE</div>
+        </div>
+        <div class="b-panel">
+          <div class="b-section-label">Exercise</div>
+          <div class="b-exercise-name">Bicep Curl</div>
+
+          <div class="b-section-label">Reps</div>
+          <div class="b-rep-row">
+            <div class="b-rep-big">2</div>
+            <div class="b-rep-sub">
+              <span class="b-rep-dir">↑ UP</span>
+              <span class="b-rep-label">direction</span>
+            </div>
+          </div>
+
+          <div class="b-section-label">Form</div>
+          <div class="b-feedback-row">
+            <div class="b-feedback-dot"></div>
+            <div class="b-feedback-text">Good form! Keep it up</div>
+          </div>
+
+          <div class="b-section-label">Signals</div>
+          <div class="b-spark-block">
+            <div class="b-spark-title">ACTIVE <span>CURL</span></div>
+            <div class="b-spark-bg">
+              <svg width="100%" height="100%" viewBox="0 0 100 22" preserveAspectRatio="none">
+                <line x1="0" y1="7" x2="100" y2="7" stroke="#3cd450" stroke-width="0.8" opacity="0.5"/>
+                <line x1="0" y1="17" x2="100" y2="17" stroke="#ff8c00" stroke-width="0.8" opacity="0.5"/>
+                <polyline points="0,20 20,18 40,12 60,6 80,4 100,8"
+                  stroke="#fff" stroke-width="1.5" fill="none"/>
+                <circle cx="100" cy="8" r="2" fill="#ff8c00"/>
+              </svg>
+            </div>
+          </div>
+          <div class="b-spark-block">
+            <div class="b-spark-title">PREDICTED <span style="color:#888;">—</span></div>
+            <div class="b-spark-bg" style="opacity:0.4;">
+              <svg width="100%" height="100%" viewBox="0 0 100 22" preserveAspectRatio="none">
+                <text x="50" y="14" text-anchor="middle" fill="#555" font-size="8">no data</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="b-emoji-row">😤</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros-cons-bar">
+      <span class="pro">✓ Info-rich</span>
+      <span class="dot">·</span>
+      <span class="pro">✓ Easy to scan</span>
+      <span class="dot">·</span>
+      <span class="con">✗ Cuts camera</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CONCEPT C ═══════════════ -->
+  <div class="concept-card" onclick="select(this,'c')">
+    <div class="selected-badge">SELECTED</div>
+    <div class="concept-label">
+      <div class="badge" style="background:rgba(180,80,255,0.15);color:#b450ff;">C</div>
+      <div>
+        <h3>Gamified AR</h3>
+        <p>Bold, immersive — rep count is the centerpiece</p>
+      </div>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="camera-bg" style="background: linear-gradient(135deg, #0e1218 0%, #0c1015 40%, #0e0e18 70%, #10101a 100%);"></div>
+      <div class="scan-line"></div>
+      <div class="person-silhouette"></div>
+
+      <svg class="skeleton-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="38" y1="22" x2="62" y2="22" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="38" y1="22" x2="30" y2="38" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="30" y1="38" x2="26" y2="52" stroke="#ff8c00" stroke-width="1.5" opacity="0.9"/>
+        <line x1="62" y1="22" x2="70" y2="38" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="70" y1="38" x2="74" y2="52" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="38" y1="22" x2="38" y2="55" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="62" y1="22" x2="62" y2="55" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="38" y1="55" x2="62" y2="55" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="44" y1="55" x2="40" y2="75" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="40" y1="75" x2="38" y2="95" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="56" y1="55" x2="60" y2="75" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <line x1="60" y1="75" x2="62" y2="95" stroke="#8844ff" stroke-width="1" opacity="0.8"/>
+        <!-- highlight elbow joint (active) -->
+        <circle cx="30" cy="38" r="3" fill="none" stroke="#ff8c00" stroke-width="1.5" opacity="0.8"/>
+        <circle cx="30" cy="38" r="1.5" fill="#ff8c00" opacity="0.9"/>
+        <circle cx="38" cy="22" r="1.5" fill="#8844ff" opacity="0.9"/>
+        <circle cx="62" cy="22" r="1.5" fill="#8844ff" opacity="0.9"/>
+        <circle cx="70" cy="38" r="1.5" fill="#8844ff" opacity="0.9"/>
+        <circle cx="26" cy="52" r="1.5" fill="#ff3333" opacity="0.9"/>
+        <circle cx="74" cy="52" r="1.5" fill="#8844ff" opacity="0.9"/>
+      </svg>
+
+      <!-- Corner brackets -->
+      <div class="corner-brackets">
+        <div class="cb cb-tl"></div>
+        <div class="cb cb-tr"></div>
+        <div class="cb cb-bl"></div>
+        <div class="cb cb-br"></div>
+      </div>
+
+      <div class="hud-c">
+        <!-- Top center: exercise tag -->
+        <div class="c-center">
+          <div class="c-exercise-tag">BICEP CURL</div>
+        </div>
+
+        <!-- Left side: rep count -->
+        <div class="c-corner">
+          <div class="c-stat-box">
+            <span class="c-stat-num">2</span>
+            <span class="c-stat-sub">REPS</span>
+          </div>
+          <div class="c-stat-box" style="border-left-color: #8844ff;">
+            <span class="c-stat-num" style="font-size:14px; color:#ff8c00;">↑</span>
+            <span class="c-stat-sub" style="color:#8844ff;">UP</span>
+          </div>
+        </div>
+
+        <!-- Progress ring bottom right -->
+        <div class="c-ring-container">
+          <svg viewBox="0 0 52 52" width="52" height="52">
+            <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+            <circle cx="26" cy="26" r="22" fill="none" stroke="#ff8c00" stroke-width="4"
+              stroke-dasharray="138.2" stroke-dashoffset="96" stroke-linecap="round"
+              transform="rotate(-90 26 26)"/>
+          </svg>
+          <div class="c-ring-label">FORM<br>70%</div>
+        </div>
+
+        <!-- Bottom: feedback bar -->
+        <div class="c-feedback-bar">
+          <div class="c-feedback-chip">Good form! Keep it up</div>
+          <span style="font-size:22px; filter: drop-shadow(0 0 8px rgba(255,200,0,0.5));">😤</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros-cons-bar">
+      <span class="pro">✓ Engaging</span>
+      <span class="dot">·</span>
+      <span class="pro">✓ Bold reps</span>
+      <span class="dot">·</span>
+      <span class="con">✗ More complex</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function select(el, choice) {
+    document.querySelectorAll('.concept-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    // Fire selection event for the companion
+    if (window.__selectOption) window.__selectOption(choice, el.querySelector('h3').textContent);
+    if (window.logEvent) window.logEvent({type:'click', choice, text: el.querySelector('h3').textContent});
+  }
+</script>
+</body>
+</html>
