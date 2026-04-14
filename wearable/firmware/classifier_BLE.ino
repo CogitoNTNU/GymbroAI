@@ -1,13 +1,10 @@
 #include <ArduinoBLE.h>
 #include "Arduino_BMI270_BMM150.h"
-
-
 #include <TensorFlowLite.h>
-#include <tensorflow/lite/micro/all_ops_resolver.h>
+#include <tensorflow/lite/micro/micro_mutable_op_resolver.h>
 #include <tensorflow/lite/micro/micro_log.h>
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
-
 #include "model.h"
 
 const float accelerationThreshold = 2.5; // threshold of significant in G's
@@ -16,15 +13,15 @@ const int numSamples = 119;
 int samplesRead = numSamples;
 
 //Setting up BLE
-BLEService classService("12345678-1234-1234-1234-1234567890ab");
+BLEService classService("db6d5260-ae3e-4421-a65c-73ca64cc7d3a");
 
-BLECharacteristic gestureChar("12345678-1234-1234-1234-1234567890ac",
+BLECharacteristic gestureChar("db6d5260-ae3e-4421-a65c-73ca64cc7d3b",
                               BLERead | BLENotify, 24);
 
 // pull in all the TFLM ops, you can remove this line and
 // only pull in the TFLM ops you need, if would like to reduce
 // the compiled size of the sketch.
-tflite::AllOpsResolver tflOpsResolver;
+static tflite::MicroMutableOpResolver<4> tflOpsResolver;
 
 const tflite::Model* tflModel = nullptr;
 tflite::MicroInterpreter* tflInterpreter = nullptr;
@@ -33,7 +30,7 @@ TfLiteTensor* tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 48 * 1024;
+constexpr int tensorArenaSize = 16 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 static uint8_t interpreterBuffer[sizeof(tflite::MicroInterpreter)] __attribute__((aligned(16)));
@@ -41,7 +38,8 @@ static uint8_t interpreterBuffer[sizeof(tflite::MicroInterpreter)] __attribute__
 // array to map gesture index to a name
 const char* GESTURES[] = {
   "biceps-curl",
-  "shoulder-pres"
+  "shoulder-pres",
+  "tri"
 };
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
@@ -54,8 +52,6 @@ void setup() {
   Serial.print("Number of exercises: ");
   Serial.println(NUM_GESTURES);
 
-  
-  
 
   // initialize the IMU
   if (!IMU.begin()) {
@@ -89,11 +85,16 @@ void setup() {
 
   BLE.advertise();
   Serial.println("Advertising..");
+
+
+  tflOpsResolver.AddFullyConnected();
+  tflOpsResolver.AddRelu();
+  tflOpsResolver.AddSoftmax();
+  tflOpsResolver.AddReshape();
   
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
- 
-
+  
   // Create an interpreter to run the model
   //tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
   tflInterpreter = new(interpreterBuffer) tflite::MicroInterpreter(
@@ -107,10 +108,12 @@ void setup() {
     while (1);
   }
 
+
   Serial.print("Arena used bytes: ");
   Serial.println(tflInterpreter->arena_used_bytes());
   Serial.print("Arena total bytes: ");
   Serial.println(tensorArenaSize);
+
 
   // Get pointers for the model's input and output tensors
   tflInputTensor = tflInterpreter->input(0);
@@ -174,7 +177,7 @@ void loop() {
           samplesRead++;
     
           if (samplesRead == numSamples) {
-            Serial.println("Running inferencing");
+            Serial.println("Start invoke");
             // Run inferencing
             TfLiteStatus invokeStatus = tflInterpreter->Invoke();
             if (invokeStatus != kTfLiteOk) {
@@ -182,6 +185,7 @@ void loop() {
               while (1);
               return;
             }
+            Serial.println("Invoke ended");
 
             
     
@@ -210,4 +214,3 @@ void loop() {
     }
   }
 }
-
