@@ -1,21 +1,31 @@
+"""
+HUD overlays and debug visualizer for the exercise classifier.
+
+Public functions (called from main.py):
+    - load_feedback_emojis(project_root)  — load emoji PNGs once at startup.
+    - draw_landmarks_on_image(...)        — skeleton connections and joint dots.
+    - draw_active_hud(...)                — exercise name, rep count, direction, feedback.
+    - draw_no_pose_hud(...)               — "NO POSE DETECTED" banner + rep summary.
+    - draw_feedback_visualizer(...)       — dual sparkline graph (active + predicted).
+"""
+
 import os
 
 import cv2
 import numpy as np
 
 from runtime_logic.rep_counter import (
+    EXERCISE_CONFIGS,
+    SWITCH_PROGRESS_THRESHOLD,
     get_exercise_metric_value,
-    get_exercise_metric_unit,
-    get_rep_config,
-    get_switch_progress_threshold,
 )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  DESIGN SYSTEM
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Hyperparameters
+# ---------------------------------------------------------------------------
 
-# BGR
+# Colors (BGR).
 C_ORANGE = (30, 165, 255)
 C_WHITE = (255, 255, 255)
 C_MUTED = (170, 180, 195)
@@ -24,20 +34,80 @@ C_RED = (60, 60, 220)
 C_YELLOW = (30, 220, 255)
 C_DARK = (8, 10, 14)
 
+# Transparency for pill backgrounds and the feedback banner.
 ALPHA_PILL = 0.72
 ALPHA_BANNER = 0.68
 
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 FONT_BOLD = cv2.FONT_HERSHEY_DUPLEX
+
+# Corner radius for rounded pills.
 RADIUS = 10
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Primitives
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Skeleton overlay
+# ---------------------------------------------------------------------------
+
+# Pairs of MediaPipe landmark indices that form the body skeleton.
+POSE_CONNECTIONS = frozenset(
+    [
+        (11, 12),
+        (11, 13),
+        (13, 15),
+        (12, 14),
+        (14, 16),
+        (11, 23),
+        (12, 24),
+        (23, 24),
+        (23, 25),
+        (25, 27),
+        (24, 26),
+        (26, 28),
+    ]
+)
+
+
+def draw_landmarks_on_image(
+    rgb_image, detection_result, landmark_indices, landmark_names
+):
+    """Draw skeleton connections and joint dots on the frame."""
+    annotated = np.copy(rgb_image)
+    for pose_landmarks in detection_result.pose_landmarks:
+        h, w = annotated.shape[:2]
+
+        for connection in POSE_CONNECTIONS:
+            start = pose_landmarks[connection[0]]
+            end = pose_landmarks[connection[1]]
+            cv2.line(
+                annotated,
+                (int(start.x * w), int(start.y * h)),
+                (int(end.x * w), int(end.y * h)),
+                (0, 255, 0),
+                2,
+            )
+
+        for name in landmark_names:
+            idx = landmark_indices[name]
+            landmark = pose_landmarks[idx]
+            cv2.circle(
+                annotated,
+                (int(landmark.x * w), int(landmark.y * h)),
+                5,
+                (0, 0, 255),
+                -1,
+            )
+
+    return annotated
+
+
+# ---------------------------------------------------------------------------
+# Drawing primitives
+# ---------------------------------------------------------------------------
 
 
 def _rounded_fill(canvas, x1, y1, x2, y2, r, color):
+    """Fill a rounded rectangle on canvas."""
     if x2 <= x1 or y2 <= y1:
         return
     r = max(0, min(r, (x2 - x1) // 2, (y2 - y1) // 2))
@@ -53,6 +123,7 @@ def _rounded_fill(canvas, x1, y1, x2, y2, r, color):
 
 
 def _pill(frame, x, y, w, h, alpha=ALPHA_PILL, color=C_DARK):
+    """Draw a semi-transparent rounded pill background."""
     overlay = frame.copy()
     _rounded_fill(overlay, x, y, x + w, y + h, RADIUS, color)
     cv2.addWeighted(overlay, alpha, frame, 1.0 - alpha, 0, frame)
@@ -67,32 +138,13 @@ def _txt_size(text, scale=0.55, thickness=1):
     return w, h
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Inline angle label
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def draw_angle_label(frame, angle, px, py):
-    text = f"{angle:.0f} deg"
-    tw, th = _txt_size(text, scale=0.42)
-    pad = 5
-    pw, ph = tw + pad * 2, th + pad * 2
-    x = max(0, px - pw // 2)
-    y = max(ph, py - 8)
-    _pill(frame, x, y - ph, pw, ph, alpha=0.65)
-    _txt(frame, text, x + pad, y - pad, C_ORANGE, scale=0.42)
-
-
-def draw_hud_text(frame, text, origin, color=C_WHITE, scale=1.0, thickness=2):
-    cv2.putText(frame, text, origin, FONT, scale, color, thickness, cv2.LINE_AA)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Emoji overlay
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Emoji overlay
+# ---------------------------------------------------------------------------
 
 
 def load_feedback_emojis(project_root):
+    """Load happy/angry emoji PNGs from the project's image directory."""
     for sub in ("graphics/Images", "graphics/images", "excercise_classifcation/Images"):
         d = os.path.join(project_root, sub)
         if os.path.isdir(d):
@@ -103,6 +155,7 @@ def load_feedback_emojis(project_root):
 
 
 def _overlay_bottom_right(frame, icon, margin, size):
+    """Alpha-blend an icon into the bottom-right corner of frame."""
     if icon is None:
         return
     ih, iw = icon.shape[:2]
@@ -124,48 +177,124 @@ def _overlay_bottom_right(frame, icon, margin, size):
         frame[y1 : y1 + ih, x1 : x1 + iw] = crop[:, :, :3]
 
 
-def draw_feedback_emoji(frame, is_good, emoji_images, margin, size):
-    _overlay_bottom_right(
-        frame, emoji_images.get("happy" if is_good else "angry"), margin, size
-    )
+# ---------------------------------------------------------------------------
+# Active HUD
+# ---------------------------------------------------------------------------
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Rep summary (legacy helper)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def draw_rep_summary(frame, exercise_name, rep_counts, y_position):
+def draw_active_hud(
+    frame,
+    exercise_name,
+    rep_counts,
+    feedback_message,
+    emoji_images,
+    rep_direction_label=None,
+    feedback_bottom_margin=35,
+    emoji_margin=28,
+    emoji_size=56,
+):
+    """Draw the main overlay: exercise name, rep count, direction, and form feedback."""
     if exercise_name is None:
         return
+
+    fh, fw = frame.shape[:2]
+    x0, y0 = 12, 12
+
+    # Pill 1: exercise name.
+    ex_label = exercise_name.replace("_", " ").upper()
+    tw, th = _txt_size(ex_label, scale=0.70, thickness=2)
+    p1w = tw + 20
+    p1h = th + 14
+    _pill(frame, x0, y0, p1w, p1h)
     _txt(
         frame,
-        f"REPS  {rep_counts[exercise_name]}",
-        16,
-        y_position,
+        ex_label,
+        x0 + 10,
+        y0 + p1h - 6,
         C_ORANGE,
-        scale=1.0,
+        scale=0.70,
         thickness=2,
         font=FONT_BOLD,
     )
 
+    # Pill 2: rep count + direction arrow.
+    y1 = y0 + p1h + 4
+    rep_val = rep_counts.get(exercise_name, 0)
+    rep_str = str(rep_val)
+    direction = str(rep_direction_label).upper() if rep_direction_label else ""
+    nw, nh = _txt_size(rep_str, scale=1.6, thickness=3)
+    dw, _ = _txt_size(direction, scale=0.72, thickness=2)
+    p2h = nh + 16
+    p2w = nw + 24 + (dw + 14 if direction else 0)
+    _pill(frame, x0, y1, p2w, p2h)
+    _txt(frame, rep_str, x0 + 10, y1 + p2h - 6, C_WHITE, scale=1.6, thickness=3)
+    if direction:
+        _txt(
+            frame,
+            direction,
+            x0 + 10 + nw + 14,
+            y1 + p2h - 8,
+            C_ORANGE,
+            scale=0.72,
+            thickness=2,
+            font=FONT_BOLD,
+        )
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Metric series — single source of truth via rep_counter
-#
-#  Uses get_exercise_metric_value() which is the exact same function the
-#  switching and rep-counting logic uses, so the graph always matches.
-# ─────────────────────────────────────────────────────────────────────────────
+    # Feedback banner + emoji.
+    if feedback_message is not None:
+        is_good = feedback_message.lower().startswith("good")
+        fb_color = C_GREEN if is_good else C_YELLOW
+        fb_y = fh - feedback_bottom_margin - 40
+        _txt(frame, "FORM", x0, fb_y, C_MUTED, scale=0.38)
+        fw_t, fh_t = _txt_size(feedback_message, scale=0.50)
+        fbw = fw_t + 20
+        fbh = fh_t + 14
+        _pill(frame, x0, fb_y + 6, fbw, fbh, alpha=ALPHA_BANNER)
+        _txt(frame, feedback_message, x0 + 10, fb_y + 6 + fbh - 5, fb_color, scale=0.50)
+        _overlay_bottom_right(
+            frame,
+            emoji_images.get("happy" if is_good else "angry"),
+            emoji_margin,
+            emoji_size,
+        )
+
+
+# ---------------------------------------------------------------------------
+# No-pose HUD
+# ---------------------------------------------------------------------------
+
+
+def draw_no_pose_hud(frame, exercise_name, rep_counts):
+    """Show 'NO POSE DETECTED' banner and rep summary."""
+    msg = "NO POSE DETECTED"
+    tw, th = _txt_size(msg, scale=0.58)
+    pw, ph = tw + 20, th + 14
+    _pill(frame, 12, 12, pw, ph, alpha=0.75, color=(18, 8, 8))
+    _txt(frame, msg, 22, 12 + ph - 6, C_RED, scale=0.58)
+    if exercise_name is not None:
+        _txt(
+            frame,
+            f"REPS  {rep_counts[exercise_name]}",
+            16,
+            12 + ph + 28,
+            C_ORANGE,
+            scale=1.0,
+            thickness=2,
+            font=FONT_BOLD,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Debug visualizer — dual sparkline (active + predicted)
+# ---------------------------------------------------------------------------
 
 
 def _get_metric_series(exercise_name, stream):
-    """Build the angle series and bounds for the sparkline from a frame stream."""
+    """Build the metric series and Y bounds for a sparkline from a frame stream."""
     if not stream or exercise_name is None:
         return None
 
-    cfg = (
-        get_rep_config().get("exercise_configs", {}).get(f"{exercise_name}_config", {})
-    )
+    cfg = EXERCISE_CONFIGS.get(exercise_name, {})
     try:
         top_t = float(cfg["top_threshold"])
         bot_t = float(cfg["bottom_threshold"])
@@ -189,132 +318,35 @@ def _get_metric_series(exercise_name, stream):
         "y_bounds": (lo, hi),
         "top_t": top_t,
         "bot_t": bot_t,
-        "unit": get_exercise_metric_unit(exercise_name),
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  ████  ACTIVE HUD  ████
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def draw_active_hud(
-    frame,
-    exercise_name,
-    rep_counts,
-    feedback_message,
-    emoji_images,
-    rep_direction_label=None,
-    feedback_bottom_margin=35,
-    emoji_margin=28,
-    emoji_size=56,
-):
-    if exercise_name is None:
-        return
-
-    fh, fw = frame.shape[:2]
-    x0, y0 = 12, 12
-
-    # Pill 1: exercise name
-    ex_label = exercise_name.replace("_", " ").upper()
-    tw, th = _txt_size(ex_label, scale=0.70, thickness=2)
-    p1w = tw + 20
-    p1h = th + 14
-    _pill(frame, x0, y0, p1w, p1h)
-    _txt(
-        frame,
-        ex_label,
-        x0 + 10,
-        y0 + p1h - 6,
-        C_ORANGE,
-        scale=0.70,
-        thickness=2,
-        font=FONT_BOLD,
-    )
-
-    # Pill 2: rep number + direction
-    y1 = y0 + p1h + 4
-    rep_val = rep_counts.get(exercise_name, 0)
-    rep_str = str(rep_val)
-    direction = str(rep_direction_label).upper() if rep_direction_label else ""
-    nw, nh = _txt_size(rep_str, scale=1.6, thickness=3)
-    dw, _ = _txt_size(direction, scale=0.72, thickness=2)
-    p2h = nh + 16
-    p2w = nw + 24 + (dw + 14 if direction else 0)
-    _pill(frame, x0, y1, p2w, p2h)
-    _txt(frame, rep_str, x0 + 10, y1 + p2h - 6, C_WHITE, scale=1.6, thickness=3)
-    if direction:
-        _txt(
-            frame,
-            direction,
-            x0 + 10 + nw + 14,
-            y1 + p2h - 8,
-            C_ORANGE,
-            scale=0.72,
-            thickness=2,
-            font=FONT_BOLD,
-        )
-
-    # Feedback
-    if feedback_message is not None:
-        is_good = feedback_message.lower().startswith("good")
-        fb_color = C_GREEN if is_good else C_YELLOW
-        fb_y = fh - feedback_bottom_margin - 40
-        _txt(frame, "FORM", x0, fb_y, C_MUTED, scale=0.38)
-        fw_t, fh_t = _txt_size(feedback_message, scale=0.50)
-        fbw = fw_t + 20
-        fbh = fh_t + 14
-        _pill(frame, x0, fb_y + 6, fbw, fbh, alpha=ALPHA_BANNER)
-        _txt(frame, feedback_message, x0 + 10, fb_y + 6 + fbh - 5, fb_color, scale=0.50)
-        draw_feedback_emoji(frame, is_good, emoji_images, emoji_margin, emoji_size)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  No-pose HUD
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def draw_no_pose_hud(frame, exercise_name, rep_counts):
-    msg = "NO POSE DETECTED"
-    tw, th = _txt_size(msg, scale=0.58)
-    pw, ph = tw + 20, th + 14
-    _pill(frame, 12, 12, pw, ph, alpha=0.75, color=(18, 8, 8))
-    _txt(frame, msg, 22, 12 + ph - 6, C_RED, scale=0.58)
-    if exercise_name is not None:
-        draw_rep_summary(frame, exercise_name, rep_counts, 12 + ph + 28)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Sparkline primitive
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 def _draw_sparkline(frame, series, y_min, y_max, top_t, bot_t, x, y, w, h):
+    """Render a single sparkline graph with threshold lines."""
     if y_max - y_min < 1e-6:
         y_max = y_min + 1.0
 
-    # Background
     overlay = frame.copy()
     cv2.rectangle(overlay, (x, y), (x + w, y + h), C_DARK, -1)
     cv2.addWeighted(overlay, 0.78, frame, 0.22, 0, frame)
 
-    def _angle_to_py(val):
+    def _val_to_py(val):
         r = np.clip((val - y_min) / (y_max - y_min), 0, 1)
         return int(y + h - r * h)
 
-    # Green = top threshold, orange = bottom threshold
+    # Green = top threshold, orange = bottom threshold.
     cv2.line(
         frame,
-        (x, _angle_to_py(top_t)),
-        (x + w, _angle_to_py(top_t)),
+        (x, _val_to_py(top_t)),
+        (x + w, _val_to_py(top_t)),
         C_GREEN,
         1,
         cv2.LINE_AA,
     )
     cv2.line(
         frame,
-        (x, _angle_to_py(bot_t)),
-        (x + w, _angle_to_py(bot_t)),
+        (x, _val_to_py(bot_t)),
+        (x + w, _val_to_py(bot_t)),
         C_ORANGE,
         1,
         cv2.LINE_AA,
@@ -323,27 +355,17 @@ def _draw_sparkline(frame, series, y_min, y_max, top_t, bot_t, x, y, w, h):
     if not series:
         return
 
-    # Draw the angle line — stretch all frames to fill full width
+    # Draw metric line — stretch all frames to fill full width.
     n = len(series)
     for i in range(1, n):
         x1p = x + int((i - 1) / max(n - 1, 1) * (w - 1))
         x2p = x + int(i / max(n - 1, 1) * (w - 1))
-        p1 = (x1p, _angle_to_py(series[i - 1]))
-        p2 = (x2p, _angle_to_py(series[i]))
+        p1 = (x1p, _val_to_py(series[i - 1]))
+        p2 = (x2p, _val_to_py(series[i]))
         cv2.line(frame, p1, p2, C_WHITE, 2, cv2.LINE_AA)
 
-    # Tip dot
-    cv2.circle(
-        frame, (x + w - 1, _angle_to_py(series[-1])), 3, C_ORANGE, -1, cv2.LINE_AA
-    )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ████  PERFORMANCE VISUALIZER  ████
-#
-#  Two sparklines stacked: ACTIVE on top, PREDICTED below.
-#  Red dashed line on predicted = midpoint between green and orange = 50% gate.
-# ─────────────────────────────────────────────────────────────────────────────
+    # Tip dot.
+    cv2.circle(frame, (x + w - 1, _val_to_py(series[-1])), 3, C_ORANGE, -1, cv2.LINE_AA)
 
 
 def draw_feedback_visualizer(
@@ -353,6 +375,8 @@ def draw_feedback_visualizer(
     rep_count,
     switch_state=None,
 ):
+    """Render dual sparkline: ACTIVE on top, PREDICTED below.
+    Red dashed line on predicted = switch progress threshold."""
     if exercise_name is None or feedback_state is None:
         return
 
@@ -364,6 +388,7 @@ def draw_feedback_visualizer(
 
     fh, fw = frame.shape[:2]
 
+    # Layout constants.
     PAD = 8
     LABEL_H = 22
     SPARK_H = 52
@@ -375,7 +400,6 @@ def draw_feedback_visualizer(
     P_Y = 0
 
     _pill(frame, P_X, P_Y, P_W, P_H, alpha=0.76)
-
     spark_w = P_W - PAD * 2
 
     for idx, (ex, stream, lbl) in enumerate(
@@ -388,10 +412,10 @@ def draw_feedback_visualizer(
         spark_x = P_X + PAD
         spark_y = card_y + LABEL_H
 
-        # Label + exercise name
+        # Label + exercise name.
         _txt(frame, lbl, spark_x, card_y + 10, C_MUTED, scale=0.30)
         lbl_w, _ = _txt_size(lbl, scale=0.30)
-        ex_text = ex.upper() if ex else "—"
+        ex_text = ex.upper() if ex else "\u2014"
         ex_col = C_ORANGE if ex else C_MUTED
         _txt(frame, ex_text, spark_x + lbl_w + 6, card_y + 10, ex_col, scale=0.34)
 
@@ -411,8 +435,7 @@ def draw_feedback_visualizer(
                 SPARK_H,
             )
             cur = metric["series"][-1]
-            unit = metric.get("unit", "deg")
-            cur_label = f"{cur:.2f}" if not unit else f"{cur:.0f} {unit}"
+            cur_label = f"{cur:.2f}"
             _txt(frame, cur_label, spark_x, spark_y + SPARK_H + 10, C_WHITE, scale=0.28)
         else:
             ov = frame.copy()
@@ -433,13 +456,11 @@ def draw_feedback_visualizer(
                 scale=0.26,
             )
 
-        # Red dashed line on predicted card — placed at the exact angle where
-        # switch_progress_threshold is reached, using predicted_start_extremity
-        # to match the direction _progress_from_extremity uses.
+        # Red dashed line on predicted card = switch progress threshold.
         if idx == 1 and metric:
             top_t = metric["top_t"]
             bot_t = metric["bot_t"]
-            thresh = get_switch_progress_threshold()
+            thresh = SWITCH_PROGRESS_THRESHOLD
             start_ext = (
                 switch_state.get("predicted_start_extremity") if switch_state else None
             )
@@ -448,12 +469,11 @@ def draw_feedback_visualizer(
             elif start_ext == "bottom":
                 start_level, target_level = bot_t, top_t
             else:
-                # Unknown direction — use midpoint as best guess
                 start_level = min(top_t, bot_t)
                 target_level = max(top_t, bot_t)
-            thresh_angle = start_level + thresh * (target_level - start_level)
+            thresh_val = start_level + thresh * (target_level - start_level)
             y_min, y_max = metric["y_bounds"]
-            r = np.clip((thresh_angle - y_min) / (y_max - y_min), 0, 1)
+            r = np.clip((thresh_val - y_min) / (y_max - y_min), 0, 1)
             thresh_y = int(spark_y + SPARK_H - r * SPARK_H)
             seg = 5
             for sx in range(spark_x, spark_x + spark_w, seg * 2):

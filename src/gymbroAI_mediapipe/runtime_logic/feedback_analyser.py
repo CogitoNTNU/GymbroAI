@@ -1,39 +1,60 @@
-from collections import defaultdict, deque
+"""
+Form feedback analyser for exercise reps.
+
+Pipeline:
+    1. Each frame, get_form_feedback() is called with the current landmarks.
+    2. detect_rep_extremity() determines if we're at "top", "bottom", or in between.
+    3. Frames are collected into a buffer while the user is mid-rep.
+    4. A full rep is bottom -> top -> bottom. When returning to "bottom",
+       the buffer is passed to an exercise-specific analyser.
+    5. Each analyser runs a chain of checks (if/elif). First failure wins.
+       If all checks pass, returns "Good form".
+"""
+
+from collections import defaultdict
 from dataclasses import dataclass, field
 
-from runtime_logic.rep_counter import (
-    detect_rep_extremity,
-    get_feature_value,
-    get_motion_profiles,
-)
+import numpy as np
 
-EXTREMITY_STREAK = 2
-FEEDBACK_BUFFER_MAX_FRAMES = 240
+from runtime_logic.rep_counter import detect_rep_extremity
+
+
+# ---------------------------------------------------------------------------
+# Hyperparameters
+# ---------------------------------------------------------------------------
+
+# Curl: shoulder-shoulder-elbow angle should be ~90° (upper arm vertical).
+CURL_TARGET_ANGLE = 90.0
+CURL_ANGLE_TOLERANCE = 8.0
+
+# Shoulder press: max allowed average Y difference between wrists.
+SHOULDER_PRESS_WRIST_Y_TOLERANCE = 0.03
+
+# Squat: tolerance before a knee is considered caving inward (X coords).
+SQUAT_KNEE_INWARD_TOLERANCE = 0.01
+# Fraction of frames where knees cave before flagging it.
+SQUAT_KNEE_INWARD_RATIO = 0.3
+
+# All exercises: minimum frames of downward motion for controlled negative.
+# ~2 seconds at 30fps.
+MIN_DOWN_FRAMES = 60
+
+
+# ---------------------------------------------------------------------------
+# State
+# ---------------------------------------------------------------------------
 
 
 @dataclass
 class FeedbackState:
     message: str | None = None
-    last_rep_count: int = 0
-    rep_completed_pending: bool = False
     last_extremity: str | None = None
-    pending_extremity: str | None = None
-    pending_count: int = 0
-    cycle_start_extremity: str | None = None
-    seen_opposite_extremity: bool = False
-    frames_in_cycle: int = 0
-    rolling_buffer: deque = field(
-        default_factory=lambda: deque(maxlen=FEEDBACK_BUFFER_MAX_FRAMES)
-    )
+    collecting: bool = False
+    rolling_buffer: list = field(default_factory=list)
 
     def reset(self):
-        self.rep_completed_pending = False
         self.last_extremity = None
-        self.pending_extremity = None
-        self.pending_count = 0
-        self.cycle_start_extremity = None
-        self.seen_opposite_extremity = False
-        self.frames_in_cycle = 0
+        self.collecting = False
         self.rolling_buffer.clear()
 
 
@@ -41,170 +62,171 @@ def create_feedback_state():
     return defaultdict(FeedbackState)
 
 
-def _confirm_extremity_transition(state, extremity):
-    if state.last_extremity == extremity:
-        state.pending_extremity = None
-        state.pending_count = 0
-        return False
-
-    if state.pending_extremity == extremity:
-        state.pending_count += 1
-    else:
-        state.pending_extremity = extremity
-        state.pending_count = 1
-
-    if state.pending_count < EXTREMITY_STREAK:
-        return False
-
-    state.pending_extremity = None
-    state.pending_count = 0
-    return True
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
 
 
-def _append_cycle_frame(state, curr_lm):
-    if curr_lm is None:
-        return
-    state.rolling_buffer.append(dict(curr_lm))
-    state.frames_in_cycle = len(state.rolling_buffer)
+def calculate_angle(p1, p2, p3):
+    """Angle in degrees at p2 formed by p1-p2-p3."""
+    a = np.array([p1[0] - p2[0], p1[1] - p2[1]])
+    b = np.array([p3[0] - p2[0], p3[1] - p2[1]])
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    cos_angle = np.clip(np.dot(a, b) / (norm_a * norm_b), -1.0, 1.0)
+    return float(np.degrees(np.arccos(cos_angle)))
 
 
-def analyze_generic_rep(exercise_name, rep_stream):
-    profile = get_motion_profiles().get(exercise_name)
-    if not rep_stream:
+def _shoulder_shoulder_elbow_angle(frame, side):
+    """Angle at the working shoulder between the opposite shoulder and elbow.
+    ~90° when the upper arm hangs straight down."""
+    opposite = "right" if side == "left" else "left"
+    try:
+        opp_shoulder = (
+            frame[f"{opposite}_shoulder_x"],
+            frame[f"{opposite}_shoulder_y"],
+        )
+        shoulder = (frame[f"{side}_shoulder_x"], frame[f"{side}_shoulder_y"])
+        elbow = (frame[f"{side}_elbow_x"], frame[f"{side}_elbow_y"])
+    except KeyError:
+        return None
+    return calculate_angle(opp_shoulder, shoulder, elbow)
+
+
+def _count_down_frames(rep_stream, y_key):
+    """Count frames where Y is increasing (moving down in mediapipe coords)."""
+    prev = None
+    count = 0
+    for frame in rep_stream:
+        val = frame.get(y_key)
+        if val is None:
+            continue
+        if prev is not None and val > prev:
+            count += 1
+        prev = val
+    return count
+
+
+# ---------------------------------------------------------------------------
+# Exercise analysers — each is a chain of checks, first failure wins.
+# ---------------------------------------------------------------------------
+
+
+def _analyze_curl_rep(rep_stream):
+    if not rep_stream or len(rep_stream) < 4:
         return None
 
-    if profile is None:
-        # Fallback when dynamic motion profiles are unavailable.
-        return "Good form"
+    # Check 1: elbows pinned to torso
+    angles = []
+    for frame in rep_stream:
+        for side in ("left", "right"):
+            a = _shoulder_shoulder_elbow_angle(frame, side)
+            if a is not None:
+                angles.append(a)
 
-    selected = (
-        profile.selected_features
-        if profile.selected_features
-        else [profile.feature_name]
-    )
-    if not selected:
-        return "Need more stable motion"
+    if angles and abs(np.mean(angles) - CURL_TARGET_ANGLE) > CURL_ANGLE_TOLERANCE:
+        return "Pin elbows to torso"
 
-    per_feature_values = {}
-    for feature_name in selected:
-        values = [
-            value
-            for value in (
-                get_feature_value(frame, feature_name) for frame in rep_stream
-            )
-            if value is not None
-        ]
-        if len(values) >= 4:
-            per_feature_values[feature_name] = values
-
-    if not per_feature_values:
-        return "Need more stable motion"
-
-    span_ok = 0
-    full_range_hits = 0
-    crossing_scores = []
-    used_count = 0
-
-    for feature_name, values in per_feature_values.items():
-        spec = profile.feature_profiles.get(feature_name)
-        if spec is None:
-            continue
-
-        used_count += 1
-        span = max(values) - min(values)
-        if span >= spec.min_significant_motion * 0.8:
-            span_ok += 1
-
-        upper_hits = sum(1 for value in values if value >= spec.top_threshold)
-        lower_hits = sum(1 for value in values if value <= spec.bottom_threshold)
-        if upper_hits > 0 and lower_hits > 0:
-            full_range_hits += 1
-
-        midpoint_crossings = sum(
-            1
-            for idx in range(1, len(values))
-            if (values[idx - 1] - spec.midpoint) * (values[idx] - spec.midpoint) < 0
-        )
-        crossing_scores.append(midpoint_crossings)
-
-    if used_count == 0:
-        return "Need more stable motion"
-
-    if span_ok < max(1, used_count // 2 + (used_count % 2)):
-        return "Increase range of motion"
-
-    if full_range_hits < max(1, used_count // 2 + (used_count % 2)):
-        return "Hit both ends of the movement"
-
-    avg_crossings = sum(crossing_scores) / max(len(crossing_scores), 1)
-    if avg_crossings < 2:
-        return "Move with fuller controlled cycles"
+    # Check 2: controlled negative
+    if _count_down_frames(rep_stream, "left_wrist_y") < MIN_DOWN_FRAMES:
+        return "Slow down the negative"
 
     return "Good form"
 
 
-def analyze_rep(exercise_name, rep_stream):
-    return analyze_generic_rep(exercise_name, rep_stream)
+def _analyze_shoulder_press_rep(rep_stream):
+    if not rep_stream or len(rep_stream) < 4:
+        return None
+
+    # Check 1: bar level
+    diffs = []
+    for frame in rep_stream:
+        ly = frame.get("left_wrist_y")
+        ry = frame.get("right_wrist_y")
+        if ly is not None and ry is not None:
+            diffs.append(abs(ly - ry))
+
+    if diffs and np.mean(diffs) > SHOULDER_PRESS_WRIST_Y_TOLERANCE:
+        return "Keep the bar level"
+
+    # Check 2: controlled negative
+    if _count_down_frames(rep_stream, "left_wrist_y") < MIN_DOWN_FRAMES:
+        return "Slow down the negative"
+
+    return "Good form"
 
 
-def _handle_confirmed_extremity_transition(
-    state,
-    exercise_name,
-    curr_lm,
-    extremity,
-    current_rep_count,
-):
-    if state.cycle_start_extremity is None:
-        state.cycle_start_extremity = extremity
-        state.seen_opposite_extremity = False
-        return
+def _analyze_squat_rep(rep_stream):
+    if not rep_stream or len(rep_stream) < 4:
+        return None
 
-    if extremity != state.cycle_start_extremity:
-        state.seen_opposite_extremity = True
-        return
+    # Check 1: knees pointing outward
+    inward_count = 0
+    total = 0
+    for frame in rep_stream:
+        lk_x = frame.get("left_knee_x")
+        lh_x = frame.get("left_hip_x")
+        rk_x = frame.get("right_knee_x")
+        rh_x = frame.get("right_hip_x")
+        if None in (lk_x, lh_x, rk_x, rh_x):
+            continue
+        total += 1
+        if (
+            lk_x < lh_x - SQUAT_KNEE_INWARD_TOLERANCE
+            or rk_x > rh_x + SQUAT_KNEE_INWARD_TOLERANCE
+        ):
+            inward_count += 1
 
-    if not state.seen_opposite_extremity:
-        return
+    if total > 0 and inward_count / total > SQUAT_KNEE_INWARD_RATIO:
+        return "Push knees outward"
 
-    # Completed one full cycle by returning to starting extremity.
-    if state.rep_completed_pending and state.rolling_buffer:
-        state.message = analyze_rep(exercise_name, list(state.rolling_buffer))
-        state.last_rep_count = current_rep_count
-        state.rep_completed_pending = False
+    # Check 2: controlled negative
+    if _count_down_frames(rep_stream, "left_hip_y") < MIN_DOWN_FRAMES:
+        return "Slow down the negative"
 
-    state.cycle_start_extremity = extremity
-    state.seen_opposite_extremity = False
-    state.rolling_buffer.clear()
-    if curr_lm is not None:
-        state.rolling_buffer.append(dict(curr_lm))
-    state.frames_in_cycle = len(state.rolling_buffer)
+    return "Good form"
+
+
+# Map exercise name to its analyser.
+_ANALYSERS = {
+    "curl": _analyze_curl_rep,
+    "shoulder_press": _analyze_shoulder_press_rep,
+    "squat": _analyze_squat_rep,
+}
+
+
+# ---------------------------------------------------------------------------
+# Main feedback loop — called every frame from main.py
+# ---------------------------------------------------------------------------
 
 
 def get_form_feedback(exercise_name, curr_lm, feedback_states, rep_counts):
+    """Collect frames during a rep, analyse when rep completes (returns to bottom)."""
     if exercise_name is None:
         return None
 
     state = feedback_states[exercise_name]
-    current_rep_count = rep_counts.get(exercise_name, 0)
-    if current_rep_count > state.last_rep_count:
-        state.rep_completed_pending = True
-
-    _append_cycle_frame(state, curr_lm)
-
     extremity = detect_rep_extremity(curr_lm, exercise_name)
+
+    # Mid-movement: keep collecting.
     if extremity is None:
+        if state.collecting and curr_lm is not None:
+            state.rolling_buffer.append(dict(curr_lm))
         return state.message
 
-    if not _confirm_extremity_transition(state, extremity):
-        return state.message
+    # At an extremity: record the frame.
+    if state.collecting and curr_lm is not None:
+        state.rolling_buffer.append(dict(curr_lm))
 
-    _handle_confirmed_extremity_transition(
-        state,
-        exercise_name,
-        curr_lm,
-        extremity,
-        current_rep_count,
-    )
+    # Returned to bottom -> full rep complete, analyse.
+    if extremity == "bottom" and state.last_extremity != "bottom":
+        analyser = _ANALYSERS.get(exercise_name)
+        if analyser and state.collecting and state.rolling_buffer:
+            state.message = analyser(state.rolling_buffer)
+        state.rolling_buffer.clear()
+        state.collecting = True
 
     state.last_extremity = extremity
     return state.message
@@ -219,13 +241,3 @@ def get_feedback_message(exercise_name, feedback_states):
 def reset_form_feedback_tracking(feedback_states):
     for state in feedback_states.values():
         state.reset()
-
-
-__all__ = [
-    "create_feedback_state",
-    "analyze_rep",
-    "analyze_generic_rep",
-    "get_form_feedback",
-    "get_feedback_message",
-    "reset_form_feedback_tracking",
-]
