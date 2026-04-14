@@ -9,13 +9,13 @@ load_dotenv()
 DEVICE_NAME = "CogitoIMU"
 CHAR_UUID = os.getenv("UUID")
 
-person = "dj"
-exercise = "squat"
 
-folder = "data0\\"
+exercise = "bicep_curl"
+
+folder = "data1\\"
 os.makedirs(folder, exist_ok=True)  # lager mappen hvis den ikke finnes
 
-filename = f"{exercise}_{person}.csv"
+filename = f"{exercise}.csv"
 filepath = os.path.join(folder, filename)
 
 file = open(filepath, "a", newline="")
