@@ -10,10 +10,8 @@ BLECharacteristic imuCharacteristic(
 );
 
 
-const float accelerationThreshold = 0;  
-const int sampleRate = 50;                
-const int captureSeconds = 2;
-const int numSamples = sampleRate * captureSeconds;
+const float accelerationThreshold = 2.5;  
+const int numSamples = 119;
 
 
 int samplesRead = numSamples;
@@ -74,13 +72,13 @@ void loop() {
 
           IMU.readAcceleration(ax, ay, az);
           IMU.readGyroscope(gx, gy, gz);
-
+          
           float data[6] = {ax, ay, az, gx, gy, gz};
           imuCharacteristic.writeValue((byte*)data, sizeof(data));
+          delay(10);
 
-          samplesRead++;
-
-          delay(1000 / sampleRate);  
+          samplesRead++;  
+ 
         }
       }
 

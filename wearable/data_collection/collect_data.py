@@ -2,17 +2,15 @@ import asyncio
 import struct
 import csv
 import os
-from dotenv import load_dotenv
 from bleak import BleakClient, BleakScanner
 
-load_dotenv()
 DEVICE_NAME = "CogitoIMU"
-CHAR_UUID = os.getenv("UUID")
+CHAR_UUID = "3ba9f7b5-8e2d-4f12-8338-08e1296dd5ff"
 
 
-exercise = "bicep_curl"
+exercise = "tricep_extension"  # Endre dette til ønsket øvelse (f.eks. "bicep_curl", "rows", "squat", "tricep_extension")
 
-folder = "data1\\"
+folder = "data\\"
 os.makedirs(folder, exist_ok=True)  # lager mappen hvis den ikke finnes
 
 filename = f"{exercise}.csv"

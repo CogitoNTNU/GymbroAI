@@ -2,10 +2,19 @@ import os
 import glob
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-COLUMNS = ["timestamp", "accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", "gyro_z", "label", "person"]
+COLUMNS = [
+    "timestamp",
+    "accel_x",
+    "accel_y",
+    "accel_z",
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+    "label",
+    "person",
+]
 
 EXERCISE_NAMES = {
     0: "Unknown",
@@ -75,7 +84,9 @@ def plot_all_exercises(data: pd.DataFrame):
         for person, grp in subset.groupby("person"):
             grp = grp.sort_values("timestamp")
             t = grp["timestamp"] - grp["timestamp"].iloc[0]
-            mag = (grp["accel_x"] ** 2 + grp["accel_y"] ** 2 + grp["accel_z"] ** 2) ** 0.5
+            mag = (
+                grp["accel_x"] ** 2 + grp["accel_y"] ** 2 + grp["accel_z"] ** 2
+            ) ** 0.5
             ax.plot(t.values, mag.values, label=person, alpha=0.8)
 
         ax.set_title(ex_name)
@@ -116,9 +127,14 @@ def plot_accel_magnitude(csv_path: str):
 if __name__ == "__main__":
     data = load_all_data(DATA_DIR)
 
-    print(f"Loaded {len(data)} samples from {data['person'].nunique()} persons "
-          f"across {data['label'].nunique()} exercise(s).")
-    print("Exercises:", {k: EXERCISE_NAMES.get(k, k) for k in sorted(data['label'].unique())})
+    print(
+        f"Loaded {len(data)} samples from {data['person'].nunique()} persons "
+        f"across {data['label'].nunique()} exercise(s)."
+    )
+    print(
+        "Exercises:",
+        {k: EXERCISE_NAMES.get(k, k) for k in sorted(data["label"].unique())},
+    )
 
     # Overview: accel magnitude per exercise
     plot_all_exercises(data)
@@ -127,7 +143,9 @@ if __name__ == "__main__":
     plot_per_file(DATA_DIR)
 
     # Acceleration magnitude for each CSV file
-    for csv_path in sorted(glob.glob(os.path.join(DATA_DIR, "**", "*.csv"), recursive=True)):
+    for csv_path in sorted(
+        glob.glob(os.path.join(DATA_DIR, "**", "*.csv"), recursive=True)
+    ):
         plot_accel_magnitude(csv_path)
 
     plt.show()

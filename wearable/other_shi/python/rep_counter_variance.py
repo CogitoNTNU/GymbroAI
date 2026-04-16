@@ -34,7 +34,7 @@ COLUMN_NAMES = ["time", "ax", "ay", "az", "gx", "gy", "gz", "label", "person"]
 
 ACCEL_COLS = ["ax", "ay", "az"]
 
-SAMPLE_RATE = 50          # Hz
+SAMPLE_RATE = 50  # Hz
 FILTER_CUTOFF_HZ = 20.0
 FILTER_ORDER = 2
 
@@ -42,7 +42,7 @@ FILTER_ORDER = 2
 MIN_PEAK_DISTANCE_SAMPLES = 20
 
 # Rolling-stats window (Threshold 1)
-ROLLING_WINDOW = 100      # samples
+ROLLING_WINDOW = 100  # samples
 
 # Rep-history threshold factor (Threshold 2)
 #   T2 = REP_THRESHOLD_FACTOR × mean(last two valid peak amplitudes)
@@ -56,6 +56,7 @@ SEED_THRESHOLD_FACTOR = 0.3
 # ---------------------------------------------------------------------------
 # File discovery & interactive selection
 # ---------------------------------------------------------------------------
+
 
 def discover_files():
     """Recursively find all CSV files under DATA_DIR, sorted by path."""
@@ -92,17 +93,16 @@ def select_file():
 # CSV loading
 # ---------------------------------------------------------------------------
 
+
 def load_csv(filepath):
     """Load CSV; fall back to COLUMN_NAMES if the file has no header row."""
     df = pd.read_csv(filepath)
     if str(df.columns[0]).lstrip("-").replace(".", "", 1).isdigit():
-        df = pd.read_csv(filepath, header=None,
-                         names=COLUMN_NAMES[: len(df.columns)])
+        df = pd.read_csv(filepath, header=None, names=COLUMN_NAMES[: len(df.columns)])
     missing = [c for c in ACCEL_COLS if c not in df.columns]
     if missing:
         raise ValueError(
-            f"Missing expected columns {missing}. "
-            f"File has: {list(df.columns)}"
+            f"Missing expected columns {missing}. File has: {list(df.columns)}"
         )
     return df
 
@@ -110,6 +110,7 @@ def load_csv(filepath):
 # ---------------------------------------------------------------------------
 # Signal processing
 # ---------------------------------------------------------------------------
+
 
 def best_accel_axis(df):
     """Return (column_name, raw_numpy_array) for the highest-variance accel axis."""
@@ -132,6 +133,7 @@ def lowpass(signal, cutoff_hz=FILTER_CUTOFF_HZ, fs=SAMPLE_RATE, order=FILTER_ORD
 # Dual-threshold repetition counting
 # ---------------------------------------------------------------------------
 
+
 def count_reps_dual_threshold(filtered_signal):
     """
     Detect peaks and count reps using two simultaneous thresholds.
@@ -153,8 +155,7 @@ def count_reps_dual_threshold(filtered_signal):
     t2_at_peaks   : list[float] T2 value at each candidate peak (for plotting)
     candidate_idx : ndarray     indices of all distance-filtered candidate peaks
     """
-    candidate_idx, _ = find_peaks(filtered_signal,
-                                  distance=MIN_PEAK_DISTANCE_SAMPLES)
+    candidate_idx, _ = find_peaks(filtered_signal, distance=MIN_PEAK_DISTANCE_SAMPLES)
     if len(candidate_idx) == 0:
         return [], [], [], candidate_idx
 
@@ -162,7 +163,7 @@ def count_reps_dual_threshold(filtered_signal):
     seed_t2 = SEED_THRESHOLD_FACTOR * filtered_signal[candidate_idx].max()
 
     rep_indices = []
-    last_two_amps = []   # rolling buffer for T2
+    last_two_amps = []  # rolling buffer for T2
     t2 = seed_t2
     t1_at_peaks = []
     t2_at_peaks = []
@@ -170,7 +171,7 @@ def count_reps_dual_threshold(filtered_signal):
     for idx in candidate_idx:
         # --- Threshold 1: rolling mean + 1 std ---
         window_start = max(0, idx - ROLLING_WINDOW + 1)
-        window = filtered_signal[window_start: idx + 1]
+        window = filtered_signal[window_start : idx + 1]
         t1 = window.mean() + window.std()
 
         t1_at_peaks.append(t1)
@@ -194,10 +195,17 @@ def count_reps_dual_threshold(filtered_signal):
 # Plotting
 # ---------------------------------------------------------------------------
 
-def plot_results(raw_signal, filtered_signal, accel_col,
-                 candidate_idx, rep_indices,
-                 t1_at_peaks, t2_at_peaks,
-                 title):
+
+def plot_results(
+    raw_signal,
+    filtered_signal,
+    accel_col,
+    candidate_idx,
+    rep_indices,
+    t1_at_peaks,
+    t2_at_peaks,
+    title,
+):
     """
     Two-panel figure:
       Top    — all raw accel axes (context)
@@ -209,36 +217,78 @@ def plot_results(raw_signal, filtered_signal, accel_col,
     fig.suptitle(f"{title}  —  {len(rep_indices)} reps counted", fontsize=13)
 
     # ── Top panel: raw selected axis ────────────────────────────────────────
-    ax1.plot(samples, raw_signal, color="steelblue", alpha=0.5,
-             linewidth=1, label=f"{accel_col} raw")
-    ax1.plot(samples, filtered_signal, color="steelblue", linewidth=1.8,
-             label=f"{accel_col} filtered")
+    ax1.plot(
+        samples,
+        raw_signal,
+        color="steelblue",
+        alpha=0.5,
+        linewidth=1,
+        label=f"{accel_col} raw",
+    )
+    ax1.plot(
+        samples,
+        filtered_signal,
+        color="steelblue",
+        linewidth=1.8,
+        label=f"{accel_col} filtered",
+    )
     ax1.set_ylabel("Acceleration")
     ax1.set_title(f"Selected axis: {accel_col} (highest variance)")
     ax1.legend(loc="upper right", fontsize=8)
     ax1.grid(True, alpha=0.3)
 
     # ── Bottom panel: thresholds + rep markers ──────────────────────────────
-    ax2.plot(samples, filtered_signal, color="steelblue", linewidth=1.5,
-             label="filtered signal")
+    ax2.plot(
+        samples,
+        filtered_signal,
+        color="steelblue",
+        linewidth=1.5,
+        label="filtered signal",
+    )
 
     # Scatter thresholds at candidate peak positions
     if len(candidate_idx):
-        ax2.scatter(candidate_idx, t1_at_peaks, color="orange", s=20,
-                    zorder=4, marker="^", label="T1: rolling mean+std")
-        ax2.scatter(candidate_idx, t2_at_peaks, color="purple", s=20,
-                    zorder=4, marker="v", label="T2: rep-history mean")
+        ax2.scatter(
+            candidate_idx,
+            t1_at_peaks,
+            color="orange",
+            s=20,
+            zorder=4,
+            marker="^",
+            label="T1: rolling mean+std",
+        )
+        ax2.scatter(
+            candidate_idx,
+            t2_at_peaks,
+            color="purple",
+            s=20,
+            zorder=4,
+            marker="v",
+            label="T2: rep-history mean",
+        )
         # Candidate peaks (not counted)
         rejected = [idx for idx in candidate_idx if idx not in rep_indices]
         if rejected:
-            ax2.scatter(rejected, filtered_signal[rejected],
-                        color="grey", s=30, zorder=4, label="rejected candidate")
+            ax2.scatter(
+                rejected,
+                filtered_signal[rejected],
+                color="grey",
+                s=30,
+                zorder=4,
+                label="rejected candidate",
+            )
 
     # Counted reps
     if rep_indices:
-        ax2.scatter(rep_indices, filtered_signal[rep_indices],
-                    color="red", s=120, zorder=5, marker="*",
-                    label=f"counted rep ({len(rep_indices)})")
+        ax2.scatter(
+            rep_indices,
+            filtered_signal[rep_indices],
+            color="red",
+            s=120,
+            zorder=5,
+            marker="*",
+            label=f"counted rep ({len(rep_indices)})",
+        )
 
     ax2.set_xlabel("Sample")
     ax2.set_ylabel("Acceleration")
@@ -254,6 +304,7 @@ def plot_results(raw_signal, filtered_signal, accel_col,
 # Per-file pipeline
 # ---------------------------------------------------------------------------
 
+
 def process(filepath):
     print(f"\nProcessing: {os.path.relpath(filepath, DATA_DIR)}")
 
@@ -262,22 +313,30 @@ def process(filepath):
 
     filtered_signal = lowpass(raw_signal)
 
-    rep_indices, t1_at_peaks, t2_at_peaks, candidate_idx = \
-        count_reps_dual_threshold(filtered_signal)
+    rep_indices, t1_at_peaks, t2_at_peaks, candidate_idx = count_reps_dual_threshold(
+        filtered_signal
+    )
 
     print(f"  Candidate peaks : {len(candidate_idx)}")
     print(f"  Reps counted    : {len(rep_indices)}")
 
     title = os.path.relpath(filepath, DATA_DIR)
-    plot_results(raw_signal, filtered_signal, accel_col,
-                 candidate_idx, rep_indices,
-                 t1_at_peaks, t2_at_peaks,
-                 title)
+    plot_results(
+        raw_signal,
+        filtered_signal,
+        accel_col,
+        candidate_idx,
+        rep_indices,
+        t1_at_peaks,
+        t2_at_peaks,
+        title,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     while True:

@@ -6,14 +6,15 @@ Place counts.json in the same folder as Index.html.
 import json
 import os
 
-COUNTS_FILE = os.path.join(os.path.dirname(__file__), 'counts.json')
+COUNTS_FILE = os.path.join(os.path.dirname(__file__), "counts.json")
+
 
 def update_count(exercise_key: str, count: int):
     """Write the current rep count to counts.json so the dashboard can read it."""
     try:
         # Read existing counts
         if os.path.exists(COUNTS_FILE):
-            with open(COUNTS_FILE, 'r') as f:
+            with open(COUNTS_FILE, "r") as f:
                 data = json.load(f)
         else:
             data = {}
@@ -22,7 +23,7 @@ def update_count(exercise_key: str, count: int):
         data[exercise_key] = count
 
         # Write back atomically
-        with open(COUNTS_FILE, 'w') as f:
+        with open(COUNTS_FILE, "w") as f:
             json.dump(data, f)
     except Exception as e:
         print(f"[dashboard sync] Could not write counts.json: {e}")

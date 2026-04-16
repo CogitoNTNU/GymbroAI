@@ -23,44 +23,55 @@ FILES = [
 ]
 
 # Expected column names (order matters when the CSV has no header)
-COLUMN_NAMES = ["timestamp", "accel_x", "accel_y", "accel_z",
-                "gyro_x", "gyro_y", "gyro_z", "label", "person"]
+COLUMN_NAMES = [
+    "timestamp",
+    "accel_x",
+    "accel_y",
+    "accel_z",
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+    "label",
+    "person",
+]
 
 # Candidate acceleration column name fragments (case-insensitive substring match)
 ACCEL_CANDIDATES = ["accel_x", "accel_y", "accel_z", "ax", "ay", "az"]
 
 
-#sample
-SAMPLE_RATE = 50 #ms
+# sample
+SAMPLE_RATE = 50  # ms
 
 # Low-pass filter
-FILTER_CUTOFF_HZ = 3.0      # cut-off frequency in Hz
-FILTER_ORDER     = 4        # Butterworth filter order
+FILTER_CUTOFF_HZ = 3.0  # cut-off frequency in Hz
+FILTER_ORDER = 4  # Butterworth filter order
 
 # Peak detection
 MIN_PEAK_DISTANCE_SAMPLES = 20  # minimum samples between counted peaks
 
 # Adaptive threshold
 ADAPTIVE_THRESHOLD_FACTOR = 0.8  # T = factor * mean(last two valid peaks)
-SEED_THRESHOLD            = 0.3  # used until two valid peaks have been found
+SEED_THRESHOLD = 0.3  # used until two valid peaks have been found
 
 
 # ---------------------------------------------------------------------------
 # CSV loading
 # ---------------------------------------------------------------------------
 
+
 def load_csv(filepath):
     """Load CSV; assign COLUMN_NAMES if the file has no header or mismatched columns."""
     df = pd.read_csv(filepath)
     # If columns look like integers the file had no header — reassign
     if df.columns[0].isdigit() or list(df.columns) == list(range(len(df.columns))):
-        df = pd.read_csv(filepath, header=None, names=COLUMN_NAMES[:len(df.columns)])
+        df = pd.read_csv(filepath, header=None, names=COLUMN_NAMES[: len(df.columns)])
     return df
 
 
 # ---------------------------------------------------------------------------
 # Column detection
 # ---------------------------------------------------------------------------
+
 
 def find_accel_columns(df):
     """Return the three acceleration column names by matching ACCEL_CANDIDATES."""
@@ -84,6 +95,7 @@ def find_accel_columns(df):
 # Signal processing
 # ---------------------------------------------------------------------------
 
+
 def select_best_axis(df, accel_cols):
     """Return (column_name, signal_array) for the axis with the highest variance."""
     variances = {col: df[col].var() for col in accel_cols}
@@ -105,6 +117,7 @@ def lowpass_filter(signal, cutoff_hz, sample_rate, order=FILTER_ORDER):
 # Repetition counting with adaptive threshold
 # ---------------------------------------------------------------------------
 
+
 def count_reps(filtered_signal):
     """
     Detect peaks and count reps using an adaptive threshold.
@@ -115,8 +128,7 @@ def count_reps(filtered_signal):
     rep_count   : int
     """
     # Find all candidate peaks (no height filter yet, only distance)
-    candidate_idx, _ = find_peaks(filtered_signal,
-                                  distance=MIN_PEAK_DISTANCE_SAMPLES)
+    candidate_idx, _ = find_peaks(filtered_signal, distance=MIN_PEAK_DISTANCE_SAMPLES)
 
     rep_indices = []
     last_two_amplitudes = []  # rolling buffer of the last two counted peak values
@@ -144,8 +156,10 @@ def count_reps(filtered_signal):
 # Plotting
 # ---------------------------------------------------------------------------
 
-def plot_results(df, accel_cols, best_col, raw_signal, filtered_signal,
-                 rep_indices, rep_count, title):
+
+def plot_results(
+    df, accel_cols, best_col, raw_signal, filtered_signal, rep_indices, rep_count, title
+):
     """Two-panel figure: all raw axes | selected axis with counted reps."""
     samples = np.arange(len(raw_signal))
 
@@ -162,11 +176,15 @@ def plot_results(df, accel_cols, best_col, raw_signal, filtered_signal,
 
     # --- Plot 2: selected axis + counted reps ---
     ax2.plot(samples, raw_signal, color="steelblue", label=f"{best_col} (raw)")
-    ax2.plot(samples, filtered_signal, color="orange", linewidth=1.5,
-             label="filtered")
+    ax2.plot(samples, filtered_signal, color="orange", linewidth=1.5, label="filtered")
     if rep_indices:
-        ax2.scatter(rep_indices, filtered_signal[rep_indices],
-                    color="red", zorder=5, label="counted rep")
+        ax2.scatter(
+            rep_indices,
+            filtered_signal[rep_indices],
+            color="red",
+            zorder=5,
+            label="counted rep",
+        )
     ax2.set_xlabel("Sample")
     ax2.set_ylabel("Acceleration")
     ax2.set_title(f"Selected axis: {best_col}  |  Reps counted: {rep_count}")
@@ -180,6 +198,7 @@ def plot_results(df, accel_cols, best_col, raw_signal, filtered_signal,
 # ---------------------------------------------------------------------------
 # Per-file pipeline
 # ---------------------------------------------------------------------------
+
 
 def process_file(filepath):
     filename = os.path.basename(filepath)
@@ -203,13 +222,22 @@ def process_file(filepath):
     print(f"  Repetitions counted: {rep_count}")
 
     title = f"{filename}  —  {rep_count} reps"
-    plot_results(df, accel_cols, best_col, raw_signal, filtered_signal,
-                 rep_indices, rep_count, title)
+    plot_results(
+        df,
+        accel_cols,
+        best_col,
+        raw_signal,
+        filtered_signal,
+        rep_indices,
+        rep_count,
+        title,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     for fpath in FILES:
