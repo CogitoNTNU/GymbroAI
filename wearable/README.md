@@ -38,7 +38,7 @@ ______________________________________________________________________
 
 ## Steg 2 — Tren modellen
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CogitoNTNU/GymbroAI/blob/main/src/wearable/training/train_model.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/CogitoNTNU/GymbroAI/blob/BLE/GymBro_AI.ipynb)
 
 Last opp CSV-filene fra `data_collection/data/` når notatboken ber om det. Last ned og legg outputfiler her:
 
