@@ -211,6 +211,13 @@
   .chart-btn.active { color:var(--cyan); border-color:var(--cyan); }
   .chart-container { background:var(--card); border:1px solid var(--border); border-radius:2px; padding:20px; position:relative; height:350px; }
   .chart-empty { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); text-align:center; padding:60px 20px; }
+
+  @keyframes repFlash {
+    0%   { box-shadow: 0 0 0 0 rgba(0,207,255,0.7); border-color: var(--cyan); }
+    60%  { box-shadow: 0 0 0 12px rgba(0,207,255,0); border-color: var(--cyan); }
+    100% { box-shadow: none; border-color: var(--border); }
+  }
+  .card.rep-flash { animation: repFlash 0.6s ease-out forwards; }
 </style>
 </head>
 <body>
@@ -342,7 +349,7 @@ function buildCards() {
 function calcPct(i) { return Math.min(100, Math.round((reps[i] / exercises[i].goal) * 100)); }
 
 /* ═══ UPDATE SINGLE CARD IN-PLACE (no rebuild, no animation) ═══ */
-function updateCard(i) {
+function updateCard(i, flash=false) {
   const repEl  = document.getElementById('rep-' + i);
   const barEl  = document.getElementById('bar-' + i);
   const pctEl  = document.getElementById('pct-' + i);
@@ -353,6 +360,12 @@ function updateCard(i) {
   barEl.style.width = pct + '%';
   pctEl.textContent = pct + '% of ' + exercises[i].goal;
   cardEl.classList.toggle('active', reps[i] > 0);
+  if (flash) {
+    cardEl.classList.remove('rep-flash');
+    void cardEl.offsetWidth;
+    cardEl.classList.add('rep-flash');
+    setTimeout(() => cardEl.classList.remove('rep-flash'), 600);
+  }
 }
 
 /* ═══ INTERACTIONS ═══ */
@@ -360,8 +373,24 @@ function onWeightChange(i, val) {
   weights[i] = parseFloat(val) || 0;
   persistWeights();
 }
-function resetOne(i) { reps[i] = 0; updateCard(i); }
-function resetAll() { reps = exercises.map(() => 0); exercises.forEach((_, i) => updateCard(i)); }
+function resetOne(i) {
+  reps[i] = 0;
+  updateCard(i);
+  fetch('http://localhost:8765/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: exercises[i].storageKey })
+  }).catch(() => {});
+}
+function resetAll() {
+  reps = exercises.map(() => 0);
+  exercises.forEach((_, i) => updateCard(i));
+  fetch('http://localhost:8765/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'all' })
+  }).catch(() => {});
+}
 
 /* ═══ SAVE WORKOUT ═══ */
 function saveWorkout() {
@@ -492,16 +521,20 @@ function renderProgress() {
   });
 }
 
-/* ═══ POLL counts.json — only touch changed cards ═══ */
+/* ═══ POLL HTTP server — only touch changed cards ═══ */
 async function syncFromFile() {
   try {
-    const res = await fetch('counts.json?t=' + Date.now());
+    const res = await fetch('http://localhost:8765/counts?t=' + Date.now());
     if (!res.ok) return;
     const data = await res.json();
     exercises.forEach((ex, i) => {
       if (!ex.storageKey) return;
       const val = parseInt(data[ex.storageKey] ?? 0, 10);
-      if (val !== reps[i]) { reps[i] = val; updateCard(i); }
+      if (val !== reps[i]) {
+        const increased = val > reps[i];
+        reps[i] = val;
+        updateCard(i, increased); // flash only on increment
+      }
     });
   } catch(e) {}
 }
