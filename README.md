@@ -149,7 +149,7 @@ This project would not have been possible without the hard work and dedication o
     </tr>
 </table>
 
-![Group picture](docs/img/team.png)
+![Group picture](docs/images/Skjermbilde 2026-04-21 180944.png)
 
 ### License
 
