@@ -71,9 +71,11 @@
     background:var(--surface); border:1px solid var(--border); color:var(--text);
     font-family:'DM Mono',monospace; font-size:12px; padding:6px 12px;
     border-radius:2px; width:170px; outline:none;
+    transition: border-color 0.2s;
   }
   .profile-input:focus { border-color:var(--cyan); }
   .profile-input::placeholder { color:var(--muted); }
+  .profile-input.has-name { border-color: rgba(0,207,255,0.35); }
 
   /* ── TABS ── */
   .tabs { display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--border); }
@@ -123,7 +125,6 @@
   .progress-fill {
     height:100%; background:linear-gradient(90deg, var(--cyan), var(--purple));
     box-shadow:0 0 6px var(--cyan); border-radius:2px;
-    /* no transition — instant update */
   }
   .progress-label { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); white-space:nowrap; }
 
@@ -210,14 +211,76 @@
   .chart-btn:hover { color:var(--text); border-color:#252b50; }
   .chart-btn.active { color:var(--cyan); border-color:var(--cyan); }
   .chart-container { background:var(--card); border:1px solid var(--border); border-radius:2px; padding:20px; position:relative; height:350px; }
+
+  /* ── PROGRESS EMPTY / NO-PROFILE STATES ── */
+  .progress-no-profile {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:60px 20px; text-align:center;
+  }
+  .progress-no-profile .pnp-icon {
+    font-size:36px; opacity:0.3;
+  }
+  .progress-no-profile .pnp-title {
+    font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--muted);
+  }
+  .progress-no-profile .pnp-sub {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--muted);
+    max-width:280px; line-height:1.7; letter-spacing:0.5px;
+  }
+  .progress-no-profile .pnp-arrow {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--cyan);
+    opacity:0.6; letter-spacing:2px; animation: arrowPulse 2s ease-in-out infinite;
+  }
+  @keyframes arrowPulse { 0%,100%{opacity:0.4;transform:translateY(0)} 50%{opacity:0.9;transform:translateY(-3px)} }
+
   .chart-empty { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); text-align:center; padding:60px 20px; }
 
-  @keyframes repFlash {
-    0%   { box-shadow: 0 0 0 0 rgba(0,207,255,0.7); border-color: var(--cyan); }
-    60%  { box-shadow: 0 0 0 12px rgba(0,207,255,0); border-color: var(--cyan); }
-    100% { box-shadow: none; border-color: var(--border); }
+  /* ── PROFILE CONTEXT BAR (progress tab) ── */
+  .profile-context-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; padding:10px 14px;
+    background:var(--card); border:1px solid var(--border); border-radius:2px;
   }
-  .card.rep-flash { animation: repFlash 0.6s ease-out forwards; }
+  .pcb-left { display:flex; align-items:center; gap:10px; }
+  .pcb-dot {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--cyan); box-shadow:0 0 8px var(--cyan);
+    animation:badgePulse 2s ease-in-out infinite;
+  }
+  .pcb-label {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .pcb-name {
+    font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--cyan);
+  }
+  .pcb-count {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px;
+  }
+
+  .progress-fill { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  /* Transition-based rep bump — no animation restart issues */
+  .rep-display {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                color 0.15s ease,
+                text-shadow 0.15s ease;
+    display: inline-block; /* transform needs block context */
+  }
+  .rep-display.rep-big {
+    transform: scale(1.22);
+    color: #fff;
+    text-shadow: 0 0 24px var(--cyan), 0 0 48px rgba(0,207,255,0.3);
+  }
+
+  /* Card border glows on the active exercise only */
+  .card {
+    transition: border-color 0.5s ease, box-shadow 0.5s ease;
+  }
+  .card.rep-flash {
+    border-color: rgba(0,207,255,0.75);
+    box-shadow: 0 0 14px rgba(0,207,255,0.12), inset 0 0 22px rgba(0,207,255,0.04);
+  }
 </style>
 </head>
 <body>
@@ -251,11 +314,7 @@
   </div>
 
   <div class="tab-panel" id="panel-progress">
-    <div class="chart-controls" id="chartControls"></div>
-    <div class="chart-container" id="chartContainer">
-      <canvas id="progressChart"></canvas>
-      <div class="chart-empty" id="chartEmpty" style="display:none">Log at least 2 workouts to see your progress charts.</div>
-    </div>
+    <div id="progressInner"></div>
   </div>
 </div>
 
@@ -274,13 +333,28 @@ let weights = exercises.map(() => 0);
 let cardsBuilt = false;
 let progressChart = null;
 let selectedExercise = 0;
+let syncCooldownUntil = 0; // timestamp — skip sync until server reset is confirmed
 
 /* ═══ LOCAL STORAGE ═══ */
+function getProfile() {
+  return document.getElementById('profileName').value.trim();
+}
 function loadProfile() {
-  document.getElementById('profileName').value = localStorage.getItem('gymbro_profile') || '';
+  const stored = localStorage.getItem('gymbro_profile') || '';
+  document.getElementById('profileName').value = stored;
+  updateProfileInputStyle();
 }
 function saveProfile() {
   localStorage.setItem('gymbro_profile', document.getElementById('profileName').value);
+  updateProfileInputStyle();
+  // Live-refresh progress tab if it's currently active
+  if (document.getElementById('panel-progress').classList.contains('active')) {
+    renderProgress();
+  }
+}
+function updateProfileInputStyle() {
+  const el = document.getElementById('profileName');
+  el.classList.toggle('has-name', el.value.trim().length > 0);
 }
 function loadWeights() {
   try {
@@ -297,6 +371,15 @@ function getWorkouts() {
 }
 function setWorkouts(list) {
   localStorage.setItem('gymbro_workouts', JSON.stringify(list));
+}
+
+/* ─── Filter workouts to the current profile ─── */
+function getWorkoutsForProfile(profileName) {
+  const all = getWorkouts();
+  if (!profileName) return [];
+  // Case-insensitive match
+  const name = profileName.toLowerCase();
+  return all.filter(w => (w.profile || '').toLowerCase() === name);
 }
 
 /* ═══ TABS ═══ */
@@ -348,7 +431,7 @@ function buildCards() {
 
 function calcPct(i) { return Math.min(100, Math.round((reps[i] / exercises[i].goal) * 100)); }
 
-/* ═══ UPDATE SINGLE CARD IN-PLACE (no rebuild, no animation) ═══ */
+/* ═══ UPDATE SINGLE CARD IN-PLACE ═══ */
 function updateCard(i, flash=false) {
   const repEl  = document.getElementById('rep-' + i);
   const barEl  = document.getElementById('bar-' + i);
@@ -361,10 +444,24 @@ function updateCard(i, flash=false) {
   pctEl.textContent = pct + '% of ' + exercises[i].goal;
   cardEl.classList.toggle('active', reps[i] > 0);
   if (flash) {
-    cardEl.classList.remove('rep-flash');
-    void cardEl.offsetWidth;
+    // Clear any active flash on ALL other cards first — only one exercise lights up at a time
+    exercises.forEach((_, j) => {
+      if (j === i) return;
+      const otherRep  = document.getElementById('rep-' + j);
+      const otherCard = document.getElementById('card-' + j);
+      if (otherRep)  { clearTimeout(otherRep._repTimer);  otherRep.classList.remove('rep-big'); }
+      if (otherCard) { clearTimeout(otherCard._flashTimer); otherCard.classList.remove('rep-flash'); }
+    });
+
+    // Transition-based bump: add class → scale up, remove after 160ms → transition back
+    // clearTimeout handles rapid successive reps gracefully
+    repEl.classList.add('rep-big');
+    clearTimeout(repEl._repTimer);
+    repEl._repTimer = setTimeout(() => repEl.classList.remove('rep-big'), 160);
+
     cardEl.classList.add('rep-flash');
-    setTimeout(() => cardEl.classList.remove('rep-flash'), 600);
+    clearTimeout(cardEl._flashTimer);
+    cardEl._flashTimer = setTimeout(() => cardEl.classList.remove('rep-flash'), 160);
   }
 }
 
@@ -383,6 +480,7 @@ function resetOne(i) {
   }).catch(() => {});
 }
 function resetAll() {
+  syncCooldownUntil = Date.now() + 2000;
   reps = exercises.map(() => 0);
   exercises.forEach((_, i) => updateCard(i));
   fetch('http://localhost:8765/reset', {
@@ -394,7 +492,7 @@ function resetAll() {
 
 /* ═══ SAVE WORKOUT ═══ */
 function saveWorkout() {
-  const profile = document.getElementById('profileName').value.trim() || 'Anonymous';
+  const profile = getProfile() || 'Anonymous';
   if (!reps.some(r => r > 0)) return;
 
   const entry = {
@@ -406,6 +504,17 @@ function saveWorkout() {
   const workouts = getWorkouts();
   workouts.unshift(entry);
   setWorkouts(workouts);
+
+  // Reset all rep counters after saving
+  // Block sync briefly so the server reset catches up before we poll again
+  syncCooldownUntil = Date.now() + 2000;
+  reps = exercises.map(() => 0);
+  exercises.forEach((_, i) => updateCard(i));
+  fetch('http://localhost:8765/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'all' })
+  }).catch(() => {});
 
   const msg = document.getElementById('saveMsg');
   msg.classList.add('show');
@@ -446,37 +555,72 @@ function clearHistory() {
   setWorkouts([]); renderHistory();
 }
 
-/* ═══ PROGRESS CHARTS ═══ */
+/* ═══ PROGRESS CHARTS — profile-scoped ═══ */
 function renderProgress() {
-  const workouts = getWorkouts();
-  const controls = document.getElementById('chartControls');
-  const empty    = document.getElementById('chartEmpty');
-  const canvas   = document.getElementById('progressChart');
+  const container = document.getElementById('progressInner');
+  const profile   = getProfile();
 
-  const namesInHistory = [...new Set(workouts.flatMap(w => w.exercises.map(e => e.name)))];
-  if (!namesInHistory.length) {
-    controls.innerHTML = '';
-    canvas.style.display = 'none';
-    empty.style.display = 'block';
+  // ── No name entered yet ──
+  if (!profile) {
     if (progressChart) { progressChart.destroy(); progressChart = null; }
+    container.innerHTML = `
+      <div class="chart-container" style="height:auto">
+        <div class="progress-no-profile">
+          <div class="pnp-icon">👤</div>
+          <div class="pnp-title">Who's Training?</div>
+          <div class="pnp-sub">Enter your name in the top-right corner to see your personal progress charts.</div>
+          <div class="pnp-arrow">↑ &nbsp; YOUR NAME &nbsp; ↑</div>
+        </div>
+      </div>`;
     return;
   }
-  canvas.style.display = 'block';
-  empty.style.display = 'none';
+
+  const workouts = getWorkoutsForProfile(profile);
+  const workoutCount = workouts.length;
+
+  // Build context bar HTML
+  const contextBarHTML = `
+    <div class="profile-context-bar">
+      <div class="pcb-left">
+        <div class="pcb-dot"></div>
+        <span class="pcb-label">Viewing progress for</span>
+        <span class="pcb-name">${profile}</span>
+      </div>
+      <span class="pcb-count">${workoutCount} workout${workoutCount !== 1 ? 's' : ''} logged</span>
+    </div>`;
+
+  // ── Has name but no data yet ──
+  if (!workoutCount) {
+    if (progressChart) { progressChart.destroy(); progressChart = null; }
+    container.innerHTML = contextBarHTML + `
+      <div class="chart-container" style="height:auto">
+        <div class="chart-empty">No workouts saved under <strong>${profile}</strong> yet.<br>Complete a session and hit "Save Workout" to start tracking.</div>
+      </div>`;
+    return;
+  }
+
+  // ── Has data — find which exercises this profile has done ──
+  const namesInHistory = [...new Set(workouts.flatMap(w => w.exercises.map(e => e.name)))];
 
   const selName = exercises[selectedExercise]?.name;
-  if (!namesInHistory.includes(selName))
-    selectedExercise = exercises.findIndex(e => namesInHistory.includes(e.name)) || 0;
+  if (!namesInHistory.includes(selName)) {
+    selectedExercise = exercises.findIndex(e => namesInHistory.includes(e.name));
+    if (selectedExercise < 0) selectedExercise = 0;
+  }
 
-  controls.innerHTML = '';
+  // Build control buttons
+  let controlsHTML = '<div class="chart-controls" id="chartControls">';
   namesInHistory.forEach(name => {
     const idx = exercises.findIndex(e => e.name === name);
-    const btn = document.createElement('button');
-    btn.className = 'chart-btn' + (idx === selectedExercise ? ' active' : '');
-    btn.textContent = name;
-    btn.onclick = () => { selectedExercise = idx; renderProgress(); };
-    controls.appendChild(btn);
+    const active = idx === selectedExercise ? ' active' : '';
+    controlsHTML += `<button class="chart-btn${active}" onclick="selectedExercise=${idx};renderProgress()">${name}</button>`;
   });
+  controlsHTML += '</div>';
+
+  container.innerHTML = contextBarHTML + controlsHTML + `
+    <div class="chart-container">
+      <canvas id="progressChart"></canvas>
+    </div>`;
 
   const exName = exercises[selectedExercise].name;
   const points = workouts.filter(w => w.exercises.some(e => e.name === exName)).reverse().map(w => {
@@ -485,13 +629,14 @@ function renderProgress() {
     return { label: d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), reps:e.reps, weight:e.weight||0 };
   });
 
-  const labels = points.map(p => p.label);
+  const labels  = points.map(p => p.label);
   const repsArr = points.map(p => p.reps);
-  const wtArr = points.map(p => p.weight);
+  const wtArr   = points.map(p => p.weight);
   const hasWeight = wtArr.some(w => w > 0);
 
-  if (progressChart) progressChart.destroy();
+  if (progressChart) { progressChart.destroy(); progressChart = null; }
 
+  const canvas = document.getElementById('progressChart');
   const datasets = [{
     label:'Reps', data:repsArr, borderColor:'#00cfff',
     backgroundColor:'rgba(0,207,255,0.08)', tension:0.3, yAxisID:'yReps',
@@ -521,8 +666,9 @@ function renderProgress() {
   });
 }
 
-/* ═══ POLL HTTP server — only touch changed cards ═══ */
+/* ═══ POLL HTTP server ═══ */
 async function syncFromFile() {
+  if (Date.now() < syncCooldownUntil) return; // wait for server reset to settle
   try {
     const res = await fetch('http://localhost:8765/counts?t=' + Date.now());
     if (!res.ok) return;
@@ -533,7 +679,7 @@ async function syncFromFile() {
       if (val !== reps[i]) {
         const increased = val > reps[i];
         reps[i] = val;
-        updateCard(i, increased); // flash only on increment
+        updateCard(i, increased);
       }
     });
   } catch(e) {}
