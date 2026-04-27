@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymBro AI — Training Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #05060f;
+    --surface: #0c0e1a;
+    --card: #0f1120;
+    --border: #1a1f3a;
+    --cyan: #00cfff;
+    --cyan-dim: rgba(0,207,255,0.12);
+    --orange: #ff6a00;
+    --orange-dim: rgba(255,106,0,0.12);
+    --purple: #8b5cf6;
+    --green: #22c55e;
+    --text: #e8eaf6;
+    --muted: #4a5080;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(0,207,255,0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(139,92,246,0.05) 0%, transparent 50%),
+      linear-gradient(rgba(0,207,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,207,255,0.015) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+    pointer-events:none; z-index:0;
+  }
+  .wrapper { max-width:1140px; margin:0 auto; position:relative; z-index:1; }
+
+  /* ── HEADER ── */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:28px; flex-wrap:wrap; gap:16px;
+    padding-bottom:20px; border-bottom:1px solid var(--border); position:relative;
+  }
+  header::after {
+    content:''; position:absolute; bottom:-1px; left:0;
+    width:220px; height:1px;
+    background:linear-gradient(90deg, var(--cyan), transparent);
+    box-shadow:0 0 12px var(--cyan);
+  }
+  .header-titles h1 {
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(30px,5vw,52px); letter-spacing:4px; line-height:1;
+  }
+  .header-titles h1 .gym { color:var(--text); }
+  .header-titles h1 .bro { color:var(--cyan); text-shadow:0 0 24px var(--cyan); }
+  .header-titles h1 .ai  { color:var(--orange); text-shadow:0 0 24px var(--orange); font-size:0.7em; vertical-align:middle; margin-left:6px; }
+  .header-titles p {
+    font-family:'DM Mono',monospace; font-size:10px;
+    color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-top:3px;
+  }
+  .profile-input {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Mono',monospace; font-size:12px; padding:6px 12px;
+    border-radius:2px; width:170px; outline:none;
+    transition: border-color 0.2s;
+  }
+  .profile-input:focus { border-color:var(--cyan); }
+  .profile-input::placeholder { color:var(--muted); }
+  .profile-input.has-name { border-color: rgba(0,207,255,0.35); }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--border); }
+  .tab-btn {
+    font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px;
+    color:var(--muted); background:none; border:none; border-bottom:2px solid transparent;
+    padding:8px 20px; cursor:pointer; transition:color 0.2s, border-color 0.2s;
+  }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ── GRID ── */
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; }
+
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:2px;
+    padding:20px 18px; display:flex; flex-direction:column;
+    position:relative; overflow:hidden;
+  }
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity:0; transition:opacity 0.3s;
+  }
+  .card:hover::before { opacity:1; }
+  .card.active { background:#0d1225; border-color:#1e2a50; }
+  .card.active::before { opacity:1; }
+
+  .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .exercise-num { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:2px; }
+  .exercise-icon { font-size:18px; opacity:0.5; }
+  .exercise-name { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; line-height:1; }
+  .rep-display {
+    font-family:'Bebas Neue',sans-serif; font-size:60px; line-height:1;
+    color:var(--cyan); letter-spacing:-2px;
+    text-shadow:0 0 16px rgba(0,207,255,0.3); margin:6px 0 2px;
+  }
+  .rep-label {
+    font-family:'DM Mono',monospace; font-size:9px;
+    color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-bottom:10px;
+  }
+
+  .progress-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .progress-bar { flex:1; height:3px; background:var(--border); overflow:hidden; border-radius:2px; }
+  .progress-fill {
+    height:100%; background:linear-gradient(90deg, var(--cyan), var(--purple));
+    box-shadow:0 0 6px var(--cyan); border-radius:2px;
+  }
+  .progress-label { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); white-space:nowrap; }
+
+  .weight-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .weight-label { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; white-space:nowrap; }
+  .weight-input {
+    background:var(--surface); border:1px solid var(--border); color:var(--cyan);
+    font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px;
+    padding:4px 8px; border-radius:2px; width:70px; text-align:center; outline:none;
+  }
+  .weight-input:focus { border-color:var(--cyan); }
+  .weight-unit { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); }
+
+  .controls { display:flex; gap:6px; margin-top:auto; }
+  .btn {
+    flex:1; height:34px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text); font-family:'Rajdhani',sans-serif; font-weight:600; font-size:15px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    user-select:none; border-radius:1px;
+  }
+  .btn:active { transform:scale(0.95); }
+  .btn-reset:hover { border-color:var(--orange); color:var(--orange); }
+
+  /* ── SAVE BAR ── */
+  .save-bar { margin-top:18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .btn-save {
+    font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px;
+    color:var(--bg); background:var(--cyan); border:none; padding:10px 32px;
+    cursor:pointer; border-radius:2px;
+  }
+  .btn-save:hover { background:#00e5ff; }
+  .btn-save:active { transform:scale(0.97); }
+  .save-msg {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--green);
+    opacity:0; transition:opacity 0.3s;
+  }
+  .save-msg.show { opacity:1; }
+  .btn-reset-all {
+    font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--muted); background:none;
+    border:1px solid var(--border); padding:8px 16px; cursor:pointer; border-radius:2px; margin-left:auto;
+  }
+  .btn-reset-all:hover { border-color:var(--orange); color:var(--orange); }
+
+  .linked-badge {
+    font-family:'DM Mono',monospace; font-size:8px; letter-spacing:1px;
+    color:var(--cyan); border:1px solid rgba(0,207,255,0.3);
+    padding:1px 5px; border-radius:2px; vertical-align:middle; margin-left:4px;
+    animation:badgePulse 2s ease-in-out infinite;
+  }
+  @keyframes badgePulse { 0%,100%{opacity:0.5} 50%{opacity:1;box-shadow:0 0 6px var(--cyan)} }
+
+  /* ── HISTORY ── */
+  .history-list { display:flex; flex-direction:column; gap:12px; }
+  .history-entry { background:var(--card); border:1px solid var(--border); border-radius:2px; padding:16px 20px; }
+  .history-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+  .history-date { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; color:var(--orange); }
+  .history-profile { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px; }
+  .history-exercises { display:flex; flex-wrap:wrap; gap:16px; }
+  .history-ex { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:600; }
+  .history-ex .ex-name { color:var(--text); }
+  .history-ex .ex-detail { font-family:'DM Mono',monospace; font-size:11px; color:var(--cyan); margin-left:4px; }
+  .history-empty { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); text-align:center; padding:40px; }
+  .btn-del-entry {
+    font-family:'DM Mono',monospace; font-size:9px; color:var(--muted);
+    background:none; border:1px solid var(--border); padding:3px 8px;
+    cursor:pointer; border-radius:2px;
+  }
+  .btn-del-entry:hover { color:var(--orange); border-color:var(--orange); }
+  .btn-clear-history {
+    font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--muted); background:none;
+    border:1px solid var(--border); padding:6px 14px; cursor:pointer; border-radius:2px; margin-top:16px;
+  }
+  .btn-clear-history:hover { border-color:var(--orange); color:var(--orange); }
+
+  /* ── PROGRESS ── */
+  .chart-controls { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .chart-btn {
+    font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px;
+    color:var(--muted); background:var(--card); border:1px solid var(--border);
+    padding:6px 14px; cursor:pointer; border-radius:2px;
+  }
+  .chart-btn:hover { color:var(--text); border-color:#252b50; }
+  .chart-btn.active { color:var(--cyan); border-color:var(--cyan); }
+  .chart-container { background:var(--card); border:1px solid var(--border); border-radius:2px; padding:20px; position:relative; height:350px; }
+
+  /* ── PROGRESS EMPTY / NO-PROFILE STATES ── */
+  .progress-no-profile {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:60px 20px; text-align:center;
+  }
+  .progress-no-profile .pnp-icon {
+    font-size:36px; opacity:0.3;
+  }
+  .progress-no-profile .pnp-title {
+    font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--muted);
+  }
+  .progress-no-profile .pnp-sub {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--muted);
+    max-width:280px; line-height:1.7; letter-spacing:0.5px;
+  }
+  .progress-no-profile .pnp-arrow {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--cyan);
+    opacity:0.6; letter-spacing:2px; animation: arrowPulse 2s ease-in-out infinite;
+  }
+  @keyframes arrowPulse { 0%,100%{opacity:0.4;transform:translateY(0)} 50%{opacity:0.9;transform:translateY(-3px)} }
+
+  .chart-empty { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); text-align:center; padding:60px 20px; }
+
+  /* ── PROFILE CONTEXT BAR (progress tab) ── */
+  .profile-context-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; padding:10px 14px;
+    background:var(--card); border:1px solid var(--border); border-radius:2px;
+  }
+  .pcb-left { display:flex; align-items:center; gap:10px; }
+  .pcb-dot {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--cyan); box-shadow:0 0 8px var(--cyan);
+    animation:badgePulse 2s ease-in-out infinite;
+  }
+  .pcb-label {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .pcb-name {
+    font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--cyan);
+  }
+  .pcb-count {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px;
+  }
+
+  .progress-fill { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  /* Transition-based rep bump — no animation restart issues */
+  .rep-display {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                color 0.15s ease,
+                text-shadow 0.15s ease;
+    display: inline-block; /* transform needs block context */
+  }
+  .rep-display.rep-big {
+    transform: scale(1.22);
+    color: #fff;
+    text-shadow: 0 0 24px var(--cyan), 0 0 48px rgba(0,207,255,0.3);
+  }
+
+  /* Card border glows on the active exercise only */
+  .card {
+    transition: border-color 0.5s ease, box-shadow 0.5s ease;
+  }
+  .card.rep-flash {
+    border-color: rgba(0,207,255,0.75);
+    box-shadow: 0 0 14px rgba(0,207,255,0.12), inset 0 0 22px rgba(0,207,255,0.04);
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="header-titles">
+      <h1><span class="gym">GYM</span><span class="bro">BRO</span><span class="ai">AI</span></h1>
+      <p>Training Log</p>
+    </div>
+    <input class="profile-input" id="profileName" type="text" placeholder="Your name…" oninput="saveProfile()" />
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('live')">Live Tracker</button>
+    <button class="tab-btn" onclick="switchTab('history')">History</button>
+    <button class="tab-btn" onclick="switchTab('progress')">Progress</button>
+  </div>
+
+  <div class="tab-panel active" id="panel-live">
+    <div class="grid" id="exerciseGrid"></div>
+    <div class="save-bar">
+      <button class="btn-save" onclick="saveWorkout()">Save Workout</button>
+      <span class="save-msg" id="saveMsg">✓ Workout saved!</span>
+      <button class="btn-reset-all" onclick="resetAll()">↺ Reset Counters</button>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-history">
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <div class="tab-panel" id="panel-progress">
+    <div id="progressInner"></div>
+  </div>
+</div>
+
+<script>
+/* ═══ CONFIG ═══ */
+const exercises = [
+  { name:"Squats",         icon:"🦵", goal:12, storageKey:"squats_counter" },
+  { name:"Bicep Curls",    icon:"💪", goal:12, storageKey:"bicep_curl_counter" },
+  { name:"Rows",           icon:"🚣", goal:12, storageKey:"rows_counter" },
+  { name:"Shoulder Press", icon:"🏋️", goal:12, storageKey:"shoulder_press_counter" },
+  { name:"Tricep Ext.",    icon:"⚡", goal:12, storageKey:"triceps_extension_counter" },
+];
+
+let reps    = exercises.map(() => 0);
+let weights = exercises.map(() => 0);
+let cardsBuilt = false;
+let progressChart = null;
+let selectedExercise = 0;
+let syncCooldownUntil = 0; // timestamp — skip sync until server reset is confirmed
+
+/* ═══ LOCAL STORAGE ═══ */
+function getProfile() {
+  return document.getElementById('profileName').value.trim();
+}
+function loadProfile() {
+  const stored = localStorage.getItem('gymbro_profile') || '';
+  document.getElementById('profileName').value = stored;
+  updateProfileInputStyle();
+}
+function saveProfile() {
+  localStorage.setItem('gymbro_profile', document.getElementById('profileName').value);
+  updateProfileInputStyle();
+  // Live-refresh progress tab if it's currently active
+  if (document.getElementById('panel-progress').classList.contains('active')) {
+    renderProgress();
+  }
+}
+function updateProfileInputStyle() {
+  const el = document.getElementById('profileName');
+  el.classList.toggle('has-name', el.value.trim().length > 0);
+}
+function loadWeights() {
+  try {
+    const w = JSON.parse(localStorage.getItem('gymbro_weights'));
+    if (w && w.length === exercises.length) weights = w;
+  } catch(e) {}
+}
+function persistWeights() {
+  localStorage.setItem('gymbro_weights', JSON.stringify(weights));
+}
+function getWorkouts() {
+  try { return JSON.parse(localStorage.getItem('gymbro_workouts')) || []; }
+  catch(e) { return []; }
+}
+function setWorkouts(list) {
+  localStorage.setItem('gymbro_workouts', JSON.stringify(list));
+}
+
+/* ─── Filter workouts to the current profile ─── */
+function getWorkoutsForProfile(profileName) {
+  const all = getWorkouts();
+  if (!profileName) return [];
+  // Case-insensitive match
+  const name = profileName.toLowerCase();
+  return all.filter(w => (w.profile || '').toLowerCase() === name);
+}
+
+/* ═══ TABS ═══ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name === 'progress') renderProgress();
+}
+
+/* ═══ BUILD CARDS ONCE ═══ */
+function buildCards() {
+  if (cardsBuilt) return;
+  cardsBuilt = true;
+  const grid = document.getElementById('exerciseGrid');
+  exercises.forEach((ex, i) => {
+    const pct = calcPct(i);
+    const badge = ex.storageKey ? `<span class="linked-badge">⟳ LIVE</span>` : '';
+    const card = document.createElement('div');
+    card.className = 'card' + (reps[i] > 0 ? ' active' : '');
+    card.id = 'card-' + i;
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="exercise-num">EX.0${i+1} ${badge}</span>
+        <span class="exercise-icon">${ex.icon}</span>
+      </div>
+      <div class="exercise-name">${ex.name}</div>
+      <div class="rep-display" id="rep-${i}">${reps[i]}</div>
+      <div class="rep-label">reps</div>
+      <div class="progress-row">
+        <div class="progress-bar"><div class="progress-fill" id="bar-${i}" style="width:${pct}%"></div></div>
+        <span class="progress-label" id="pct-${i}">${pct}% of ${ex.goal}</span>
+      </div>
+      <div class="weight-row">
+        <span class="weight-label">Weight</span>
+        <input class="weight-input" id="wt-${i}" type="number" min="0" step="0.5"
+               value="${weights[i] || ''}" placeholder="—"
+               oninput="onWeightChange(${i}, this.value)" />
+        <span class="weight-unit">kg</span>
+      </div>
+      <div class="controls">
+        <button class="btn btn-reset" onclick="resetOne(${i})">↺</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function calcPct(i) { return Math.min(100, Math.round((reps[i] / exercises[i].goal) * 100)); }
+
+/* ═══ UPDATE SINGLE CARD IN-PLACE ═══ */
+function updateCard(i, flash=false) {
+  const repEl  = document.getElementById('rep-' + i);
+  const barEl  = document.getElementById('bar-' + i);
+  const pctEl  = document.getElementById('pct-' + i);
+  const cardEl = document.getElementById('card-' + i);
+  if (!repEl) return;
+  const pct = calcPct(i);
+  repEl.textContent = reps[i];
+  barEl.style.width = pct + '%';
+  pctEl.textContent = pct + '% of ' + exercises[i].goal;
+  cardEl.classList.toggle('active', reps[i] > 0);
+  if (flash) {
+    // Clear any active flash on ALL other cards first — only one exercise lights up at a time
+    exercises.forEach((_, j) => {
+      if (j === i) return;
+      const otherRep  = document.getElementById('rep-' + j);
+      const otherCard = document.getElementById('card-' + j);
+      if (otherRep)  { clearTimeout(otherRep._repTimer);  otherRep.classList.remove('rep-big'); }
+      if (otherCard) { clearTimeout(otherCard._flashTimer); otherCard.classList.remove('rep-flash'); }
+    });
+
+    // Transition-based bump: add class → scale up, remove after 160ms → transition back
+    // clearTimeout handles rapid successive reps gracefully
+    repEl.classList.add('rep-big');
+    clearTimeout(repEl._repTimer);
+    repEl._repTimer = setTimeout(() => repEl.classList.remove('rep-big'), 160);
+
+    cardEl.classList.add('rep-flash');
+    clearTimeout(cardEl._flashTimer);
+    cardEl._flashTimer = setTimeout(() => cardEl.classList.remove('rep-flash'), 160);
+  }
+}
+
+/* ═══ INTERACTIONS ═══ */
+function onWeightChange(i, val) {
+  weights[i] = parseFloat(val) || 0;
+  persistWeights();
+}
+function resetOne(i) {
+  reps[i] = 0;
+  updateCard(i);
+  fetch('http://localhost:8765/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: exercises[i].storageKey })
+  }).catch(() => {});
+}
+function resetAll() {
+  syncCooldownUntil = Date.now() + 2000;
+  reps = exercises.map(() => 0);
+  exercises.forEach((_, i) => updateCard(i));
+  fetch('http://localhost:8765/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'all' })
+  }).catch(() => {});
+}
+
+/* ═══ SAVE WORKOUT ═══ */
+function saveWorkout() {
+  const profile = getProfile() || 'Anonymous';
+  if (!reps.some(r => r > 0)) return;
+
+  const entry = {
+    date: new Date().toISOString(),
+    profile,
+    exercises: exercises.map((ex, i) => ({ name:ex.name, reps:reps[i], weight:weights[i] }))
+                        .filter(e => e.reps > 0),
+  };
+  const workouts = getWorkouts();
+  workouts.unshift(entry);
+  setWorkouts(workouts);
+
+  // Reset all rep counters after saving
+  // Block sync briefly so the server reset catches up before we poll again
+  syncCooldownUntil = Date.now() + 2000;
+  reps = exercises.map(() => 0);
+  exercises.forEach((_, i) => updateCard(i));
+  fetch('http://localhost:8765/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'all' })
+  }).catch(() => {});
+
+  const msg = document.getElementById('saveMsg');
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2200);
+}
+
+/* ═══ HISTORY ═══ */
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const workouts = getWorkouts();
+  if (!workouts.length) {
+    list.innerHTML = '<div class="history-empty">No workouts logged yet. Use the Live Tracker and hit "Save Workout".</div>';
+    return;
+  }
+  let html = '';
+  workouts.forEach((w, wi) => {
+    const d = new Date(w.date);
+    const ds = d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})
+             + '  ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    html += `<div class="history-entry"><div class="history-head">
+      <div><div class="history-date">${ds}</div><div class="history-profile">${w.profile}</div></div>
+      <button class="btn-del-entry" onclick="deleteEntry(${wi})">✕ delete</button>
+    </div><div class="history-exercises">`;
+    w.exercises.forEach(e => {
+      const wt = e.weight ? ` @ ${e.weight}kg` : '';
+      html += `<div class="history-ex"><span class="ex-name">${e.name}</span><span class="ex-detail">${e.reps} reps${wt}</span></div>`;
+    });
+    html += '</div></div>';
+  });
+  html += '<button class="btn-clear-history" onclick="clearHistory()">Clear All History</button>';
+  list.innerHTML = html;
+}
+function deleteEntry(i) {
+  const w = getWorkouts(); w.splice(i, 1); setWorkouts(w); renderHistory();
+}
+function clearHistory() {
+  if (!confirm('Delete all workout history?')) return;
+  setWorkouts([]); renderHistory();
+}
+
+/* ═══ PROGRESS CHARTS — profile-scoped ═══ */
+function renderProgress() {
+  const container = document.getElementById('progressInner');
+  const profile   = getProfile();
+
+  // ── No name entered yet ──
+  if (!profile) {
+    if (progressChart) { progressChart.destroy(); progressChart = null; }
+    container.innerHTML = `
+      <div class="chart-container" style="height:auto">
+        <div class="progress-no-profile">
+          <div class="pnp-icon">👤</div>
+          <div class="pnp-title">Who's Training?</div>
+          <div class="pnp-sub">Enter your name in the top-right corner to see your personal progress charts.</div>
+          <div class="pnp-arrow">↑ &nbsp; YOUR NAME &nbsp; ↑</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const workouts = getWorkoutsForProfile(profile);
+  const workoutCount = workouts.length;
+
+  // Build context bar HTML
+  const contextBarHTML = `
+    <div class="profile-context-bar">
+      <div class="pcb-left">
+        <div class="pcb-dot"></div>
+        <span class="pcb-label">Viewing progress for</span>
+        <span class="pcb-name">${profile}</span>
+      </div>
+      <span class="pcb-count">${workoutCount} workout${workoutCount !== 1 ? 's' : ''} logged</span>
+    </div>`;
+
+  // ── Has name but no data yet ──
+  if (!workoutCount) {
+    if (progressChart) { progressChart.destroy(); progressChart = null; }
+    container.innerHTML = contextBarHTML + `
+      <div class="chart-container" style="height:auto">
+        <div class="chart-empty">No workouts saved under <strong>${profile}</strong> yet.<br>Complete a session and hit "Save Workout" to start tracking.</div>
+      </div>`;
+    return;
+  }
+
+  // ── Has data — find which exercises this profile has done ──
+  const namesInHistory = [...new Set(workouts.flatMap(w => w.exercises.map(e => e.name)))];
+
+  const selName = exercises[selectedExercise]?.name;
+  if (!namesInHistory.includes(selName)) {
+    selectedExercise = exercises.findIndex(e => namesInHistory.includes(e.name));
+    if (selectedExercise < 0) selectedExercise = 0;
+  }
+
+  // Build control buttons
+  let controlsHTML = '<div class="chart-controls" id="chartControls">';
+  namesInHistory.forEach(name => {
+    const idx = exercises.findIndex(e => e.name === name);
+    const active = idx === selectedExercise ? ' active' : '';
+    controlsHTML += `<button class="chart-btn${active}" onclick="selectedExercise=${idx};renderProgress()">${name}</button>`;
+  });
+  controlsHTML += '</div>';
+
+  container.innerHTML = contextBarHTML + controlsHTML + `
+    <div class="chart-container">
+      <canvas id="progressChart"></canvas>
+    </div>`;
+
+  const exName = exercises[selectedExercise].name;
+  const points = workouts.filter(w => w.exercises.some(e => e.name === exName)).reverse().map(w => {
+    const e = w.exercises.find(e => e.name === exName);
+    const d = new Date(w.date);
+    return { label: d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}), reps:e.reps, weight:e.weight||0 };
+  });
+
+  const labels  = points.map(p => p.label);
+  const repsArr = points.map(p => p.reps);
+  const wtArr   = points.map(p => p.weight);
+  const hasWeight = wtArr.some(w => w > 0);
+
+  if (progressChart) { progressChart.destroy(); progressChart = null; }
+
+  const canvas = document.getElementById('progressChart');
+  const datasets = [{
+    label:'Reps', data:repsArr, borderColor:'#00cfff',
+    backgroundColor:'rgba(0,207,255,0.08)', tension:0.3, yAxisID:'yReps',
+    pointRadius:4, pointBackgroundColor:'#00cfff', fill:true,
+  }];
+  const scales = {
+    x:{ ticks:{color:'#4a5080',font:{family:'DM Mono',size:10}}, grid:{color:'rgba(26,31,58,0.5)'} },
+    yReps:{ position:'left', title:{display:true,text:'Reps',color:'#00cfff',font:{family:'DM Mono',size:11}},
+            ticks:{color:'#4a5080',font:{family:'DM Mono',size:10}}, grid:{color:'rgba(26,31,58,0.5)'}, beginAtZero:true },
+  };
+  if (hasWeight) {
+    datasets.push({
+      label:'Weight (kg)', data:wtArr, borderColor:'#ff6a00',
+      backgroundColor:'rgba(255,106,0,0.08)', tension:0.3, yAxisID:'yWeight',
+      pointRadius:4, pointBackgroundColor:'#ff6a00', fill:true,
+    });
+    scales.yWeight = {
+      position:'right', title:{display:true,text:'kg',color:'#ff6a00',font:{family:'DM Mono',size:11}},
+      ticks:{color:'#4a5080',font:{family:'DM Mono',size:10}}, grid:{drawOnChartArea:false}, beginAtZero:true,
+    };
+  }
+  progressChart = new Chart(canvas, {
+    type:'line', data:{labels,datasets},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#e8eaf6',font:{family:'DM Mono',size:11}}} },
+      scales },
+  });
+}
+
+/* ═══ POLL HTTP server ═══ */
+async function syncFromFile() {
+  if (Date.now() < syncCooldownUntil) return; // wait for server reset to settle
+  try {
+    const res = await fetch('http://localhost:8765/counts?t=' + Date.now());
+    if (!res.ok) return;
+    const data = await res.json();
+    exercises.forEach((ex, i) => {
+      if (!ex.storageKey) return;
+      const val = parseInt(data[ex.storageKey] ?? 0, 10);
+      if (val !== reps[i]) {
+        const increased = val > reps[i];
+        reps[i] = val;
+        updateCard(i, increased);
+      }
+    });
+  } catch(e) {}
+}
+
+/* ═══ INIT ═══ */
+loadProfile();
+loadWeights();
+buildCards();
+syncFromFile();
+setInterval(syncFromFile, 1000);
+</script>
+</body>
+</html>

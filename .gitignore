@@ -252,3 +252,9 @@ lerna-debug.log
 # System Files
 .DS_Store
 Thumbs.db
+
+# Runtime file, changes every inference session
+src/wearable/visualisation/counts.json
+
+# Raw data (optional - remove these lines if you want data tracked)
+src/wearable/data_collection/data/*.csv
