@@ -4,7 +4,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from bleak import BleakScanner, BleakClient
-from dashboard_sync import update_count
+from src.wearable.visualisation.dashboard_sync import update_count
 
 DEVICE_NAME = "CogitoIMU"
 GEST_UUID = "db6d5260-ae3e-4421-a65c-73ca64cc7d3b"
@@ -55,7 +55,6 @@ def gest_callback(sender, data):
 
 # ── HTTP Server ───────────────────────────────────────────────────────────────
 class DashboardHandler(BaseHTTPRequestHandler):
-
     def log_message(self, format, *args):
         pass  # silence request logs
 
@@ -72,7 +71,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/counts"):
             try:
-                data = json.load(open(COUNTS_FILE)) if os.path.exists(COUNTS_FILE) else {}
+                data = (
+                    json.load(open(COUNTS_FILE)) if os.path.exists(COUNTS_FILE) else {}
+                )
             except Exception:
                 data = {}
             body = json.dumps(data).encode()
@@ -95,8 +96,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             global rows_counter, squats_counter, triceps_extension_counter
 
             all_keys = [
-                "bicep_curl_counter", "shoulder_press_counter",
-                "rows_counter", "squats_counter", "triceps_extension_counter"
+                "bicep_curl_counter",
+                "shoulder_press_counter",
+                "rows_counter",
+                "squats_counter",
+                "triceps_extension_counter",
             ]
 
             if key == "all":
@@ -105,11 +109,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 rows_counter = squats_counter = triceps_extension_counter = 0
             elif key in all_keys:
                 keys_to_reset = [key]
-                if key == "bicep_curl_counter":          bicep_curl_counter = 0
-                elif key == "shoulder_press_counter":    shoulder_press_counter = 0
-                elif key == "rows_counter":              rows_counter = 0
-                elif key == "squats_counter":            squats_counter = 0
-                elif key == "triceps_extension_counter": triceps_extension_counter = 0
+                if key == "bicep_curl_counter":
+                    bicep_curl_counter = 0
+                elif key == "shoulder_press_counter":
+                    shoulder_press_counter = 0
+                elif key == "rows_counter":
+                    rows_counter = 0
+                elif key == "squats_counter":
+                    squats_counter = 0
+                elif key == "triceps_extension_counter":
+                    triceps_extension_counter = 0
             else:
                 keys_to_reset = []
 
